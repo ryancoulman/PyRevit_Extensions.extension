@@ -1,0 +1,11 @@
+title:
+  en_us: Selected Tags
+tooltip:
+  en_us: |-
+    Overview: 
+    Convert all selected annotation tags to plain text. 
+    ---
+    Description:
+    - This tool will allow you to select the text style for the plain text. 
+    - All tags that were convereted will be printed so that you can peform a saftey check if needed.
+    - The plain replacement text notes will be placed in roughly the same position as the annotation tag

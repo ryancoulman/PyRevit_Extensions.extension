@@ -1,0 +1,6 @@
+title:
+  en_us: Rotate Section
+
+# TO DO 
+# 1. Make more generic so works for most elements not just sections 
+# 2. Work inside Section views (currently tries to rotate in xy dimensions still)

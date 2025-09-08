@@ -1,0 +1,12 @@
+TO MAKE 
+- Hide all sections not on sheet 
+- Apply filter(s) to selected views on sheet 
+    - (in sheet view) Form to select filter(s) and a button to turn visibility on or off 
+    - If colour overides involved option to copy a filter from current view to others on sheet 
+    - Use functiosn from Revit Links to get all views on sheet, and Overide All Filters for copying behavior 
+- Custom script builder to allow user to create keyboard shortcuts to turn selected worksets on / off (nned individual script to assign KS too)
+    - Some kind of pushsplitpulldown button that has a button to create a script which it adds to the pulldown 
+    - The scripts can then simply just call some classes in a lib folder to handle hiding the worsket (just pass name / ID accross)
+    - Could look at dev tab tool that allows you to create pushbuttons etc
+    - Extend beyond worksets
+

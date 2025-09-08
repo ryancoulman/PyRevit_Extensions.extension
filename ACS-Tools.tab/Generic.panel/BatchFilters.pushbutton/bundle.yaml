@@ -1,0 +1,26 @@
+title:
+  en_us: |-
+    Batch View 
+    Filters
+tooltip:
+  en_us: |-
+    Description:
+    You can batch add or remove filters from any number of views within the project. 
+
+    How it Works:
+    - **Activate in Sheet View**: If activated within sheet view then you can add / remove filters from the entire project to all views or just those within the sheet.
+
+    - **Activating in a Viewport**: If activated within a viewport, any graphic (color) overrides from that view will be copied to the destination views. Furthermore, if the viewport is placed on a sheet, you will have access to all views associated with it.
+
+    - **Selecting Views in Project Browser**: Before using this tool, you can select your target views in the Project Browser. These selected views will automatically be included when you activate the tool. If done within a viewport, any graphic overrides will also be applied.
+
+    - **Mode Indication**: The top of the interface displays whether you are in Sheet Mode or Viewport Mode. In Sheet Mode, filter color overrides will not be copied to the views. In contrast, in Viewport Mode, these overrides will be applied. This distinction ensures that your filter management aligns with your project requirements.
+
+    How to Use:
+    1. Activate your desired source view based on the information above.
+    2. Select your destination views.
+    3. Choose the filters you want to apply (click once to add and a second time to remove).
+    4. Set the visibility of the filters (this step can be ignored if you are removing filters).
+    5. Click "Apply" to execute your changes.
+
+# TO DO 

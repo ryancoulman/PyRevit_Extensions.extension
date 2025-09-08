@@ -1,0 +1,19 @@
+title:
+  en_us: Views on Sheet 
+tooltip:
+  en_us: |-
+    Overview:
+    Like 'Active View' this will turn off the annotation categories for all Revit links. The differnce is here you can select your choice of views on the current sheet to apply to. 
+    ---
+    The information below is repeated from 'Active View'
+    ---
+    Beware:
+    - If you have applied specific model category overrides for a particular Revit link, then this will override them. 
+    - If the view has a view template applied, it will remove it with your permission. If running for multiple views at a time, you may ignore this popup for all instances.
+    - If applied within a dependent view, the settings will naturally be applied to all other dependent views.
+    ---
+    How it works:
+    This tool will apply a view template (only modifies Revit links) with all Revit links set to custom annotation categories turned off, and all other categories left to the host view. The template will then be removed, and links that were off originally will be hidden.
+    ---
+    SetUp:
+    If in a new project, you must set up a view template with all Revit link annotation categories turned off. Ensure to only check Revit link categories so that no other categories are modified. This template must be named 'Revit Links Annotation Categories Off'.

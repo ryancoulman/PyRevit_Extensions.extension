@@ -1,0 +1,8 @@
+title:
+  en_us: Revit Links
+layout:
+  - ActiveView
+  - ViewsOnSheet
+
+# TO DO 
+# 1. Determine if revit link model catogries are set to custom (think i did this beofre but for link isntance in old one)
