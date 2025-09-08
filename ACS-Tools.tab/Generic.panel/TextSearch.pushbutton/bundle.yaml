@@ -3,4 +3,5 @@ title:
 tooltip:
   en_us: |-
     Overview: 
-    Select all text notes in the active view that match a given string.
+    - Select all text notes in the active view that match a given string.
+    - If select text note before then will automatically select all matching notes 

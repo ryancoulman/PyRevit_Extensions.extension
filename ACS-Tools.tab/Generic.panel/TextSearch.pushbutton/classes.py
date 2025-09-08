@@ -43,6 +43,22 @@ class FormHandler():
         else:
             forms.alert('No text given', exitscript=True)
             return None
+        
+
+
+def check_selected(doc, uidoc):
+    """Return a list of strings for selected TextNotes, or alert if none."""
+    sel_ids = uidoc.Selection.GetElementIds()
+    text_notes = []
+    for eid in sel_ids:
+        elem = doc.GetElement(eid)
+        if isinstance(elem, TextNote):
+            text_notes.append(elem.Text)
+    
+    return text_notes[0]
+        
+
+
 
 class TextHandler():
     def __init__(self, document, view, ui_document, choosen_options):
