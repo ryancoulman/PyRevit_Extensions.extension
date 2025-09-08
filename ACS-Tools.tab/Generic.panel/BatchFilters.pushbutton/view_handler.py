@@ -3,7 +3,7 @@ from Autodesk.Revit.DB import FilteredElementCollector, BuiltInCategory, Viewpor
 from pyrevit import forms
 from create_list import create_List
 from get_viewSheet import GetViewSheet
-from get_Selected_Views import get_selected_views
+from helefuncs import get_selected_views
 
 class ViewHandler:
     def __init__(self, active_view, doc, uidoc):
@@ -25,7 +25,7 @@ class ViewHandler:
         if self.is_sheet_view:
             views_on_current_sheet = self.get_views_on_sheet(self.active_view)
         else:
-            get_view_sheet = GetViewSheet(active_view, doc, exit_script=False)
+            get_view_sheet = GetViewSheet(active_view, doc, print_sheet=False)
             if get_view_sheet.get_sheet():
                 # Get other views on sheet if the view is placed on a sheet 
                 sheet_view = get_view_sheet.get_sheet()

@@ -20,7 +20,7 @@ class GetViewSheet():
         
         if self.sheet and print_sheet:
             print('Sheet Found: {} - {}'.format(self.sheet.SheetNumber, self.sheet.Name))
-        elif not self.sheet:
+        elif not self.sheet and print_sheet:
             forms.alert('No sheet associated with the given view: {}'.format(active_view.Name), exitscript=True)
         
     def create_string_equals_filter(self, key_parameter, element_value):

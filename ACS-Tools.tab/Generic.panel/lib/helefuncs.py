@@ -4,7 +4,7 @@ from Autodesk.Revit.DB import FilteredElementCollector, View
 
 
 class ViewHandler():
-    """Helper for selecting independent views in a project."""
+    """Helper for selecting views in a project."""
 
     def __init__(self, doc):
         self.doc = doc
@@ -35,3 +35,22 @@ class ViewHandler():
             return []
 
         return [view_dict[name] for name in selected_names]
+    
+
+
+def get_selected_views(uidoc, doc):
+    """
+    Return a list of Revit View elements selected in the Project Browser.
+    If no views are selected, return an empty list.
+    """
+    sel_ids = uidoc.Selection.GetElementIds()
+    if not sel_ids:
+        return []
+
+    views = []
+    for eid in sel_ids:
+        elem = doc.GetElement(eid)
+        if isinstance(elem, View) and not elem.IsTemplate:
+            views.append(elem)
+
+    return views
