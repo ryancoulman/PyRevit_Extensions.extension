@@ -5,7 +5,7 @@
 
 from pyrevit import forms, DB, revit
 
-
+__title__ = "Create Dependents"
 
 class ScopeBoxSelector(object):
     """Helper for fetching and selecting scope boxes in Revit."""
@@ -21,25 +21,31 @@ class ScopeBoxSelector(object):
             .WhereElementIsNotElementType() \
             .ToElements()
 
-    def get_scopebox_dict(self, sort_alpha=True):
-        """Return dict of {name: element} for scope boxes.
-        If sort_alpha=True, sort names alphabetically.
-        """
-        sb_dict = {sb.Name: sb for sb in self._scope_boxes}
-        if sort_alpha:
-            # Sort keys alphabetically
-            return {k: sb_dict[k] for k in sorted(sb_dict.keys(), key=str.lower)}
-        return sb_dict
+    def get_scopebox_dict(self):
+        """Return dict of {name: element} for scope boxes"""
+        return {sb.Name: sb for sb in self._scope_boxes}
 
-    def get_selected(self, multiselect=True, sort_alpha=True):
+    
+    def get_search_string(self):
+        search_term = forms.ask_for_string(
+            prompt='Enter base name of dependent views:', 
+            title='Dependent view name = base name + scope name'
+        )
+        if search_term:
+            return search_term
+        else:
+            forms.alert('No text given', exitscript=True)
+            return None
+
+    def get_selected(self, multiselect=True):
         """Show selection form and return selected scope box elements."""
         if not self._scope_boxes:
             forms.alert("No scope boxes found in this project.", exitscript=True)
 
-        sb_dict = self.get_scopebox_dict(sort_alpha=sort_alpha)
+        sb_dict = self.get_scopebox_dict()
 
         selected_names = forms.SelectFromList.show(
-            sb_dict.keys(),
+            sorted(sb_dict.keys()),
             multiselect=multiselect,
             title="Select Scope Boxes",
             button_name="Select"
@@ -54,9 +60,10 @@ class ScopeBoxSelector(object):
 class DependentViewCreator(object):
     """Helper for creating dependent views from a master view."""
 
-    def __init__(self, doc, master_view):
+    def __init__(self, doc, master_view, base_name):
         self.doc = doc
         self.master_view = master_view
+        self.base_name = base_name 
 
     def create_dependents(self, scope_boxes):
         """Create dependent views for given scope boxes.
@@ -80,7 +87,7 @@ class DependentViewCreator(object):
                     scope_param.Set(sb.Id)
 
                 # Rename view: "MasterName - ScopeBoxName"
-                new_name = "{} - {}".format(self.master_view.Name, sb.Name)
+                new_name = "{} - {}".format(self.base_name, sb.Name)
                 dep_view.Name = new_name
 
                 new_views.append(dep_view)
@@ -98,9 +105,10 @@ class DependentViewCreator(object):
 # Step 1: Select scope boxes
 selector = ScopeBoxSelector(revit.doc)
 selected_scopeboxes = selector.get_selected()
+base_name = selector.get_search_string()
 
 # Step 2: Create dependents from current view
-creator = DependentViewCreator(revit.doc, revit.active_view)
+creator = DependentViewCreator(revit.doc, revit.active_view, base_name)
 new_views = creator.create_dependents(selected_scopeboxes)
 
 # Step 3: Feedback

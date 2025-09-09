@@ -1,28 +1,30 @@
 from Autodesk.Revit.DB import FilteredElementCollector, ElementId, TextNote, IndependentTag
 from pyrevit import forms
 from System.Collections.Generic import List
+import re
 
 
 class FormHandler():
     MATCH_ENTIRE_WORD = "Match Entire Text Note"
     MATCH_BEGINNING_ONLY = "Match Beginning Only"
     MATCH_WITHIN_ONLY = "Match Anywhere Within Text"
+    MATCH_REGEX = "Match Using Regex"
     MATCH_CASE = "Match Case"
     ANNOTATION_TAGS = "Inlclude Annotation Tags"
 
     def __init__(self, document, view):
         self.doc = document
         self.active_view = view
-        self.options = [self.MATCH_ENTIRE_WORD, self.MATCH_BEGINNING_ONLY, self.MATCH_WITHIN_ONLY, self.MATCH_CASE, self.ANNOTATION_TAGS]
+        self.options = [self.MATCH_ENTIRE_WORD, self.MATCH_BEGINNING_ONLY, self.MATCH_WITHIN_ONLY, self.MATCH_REGEX, self.MATCH_CASE, self.ANNOTATION_TAGS]
         self.selected_options = self.call_form()
 
     def call_form(self):
         selected_options = forms.SelectFromList.show(self.options, title="Advanced Search Options", multiselect=True)
         # Check the user has not selected contracdictory options 
-        count = sum([s in selected_options for s in [self.MATCH_ENTIRE_WORD, self.MATCH_BEGINNING_ONLY, self.MATCH_WITHIN_ONLY]])
+        count = sum([s in selected_options for s in [self.MATCH_ENTIRE_WORD, self.MATCH_BEGINNING_ONLY, self.MATCH_WITHIN_ONLY, self.MATCH_REGEX]])
         if count > 1:
             forms.alert("Contradictory criteria selected.", exitscript=True)
-        if not any(item in [self.MATCH_ENTIRE_WORD, self.MATCH_BEGINNING_ONLY, self.MATCH_WITHIN_ONLY] for item in selected_options):
+        if not any(item in [self.MATCH_ENTIRE_WORD, self.MATCH_BEGINNING_ONLY, self.MATCH_WITHIN_ONLY, self.MATCH_REGEX] for item in selected_options):
             forms.alert("Please select how you wish to search the text.", exitscript=True)
         return selected_options
 
@@ -55,8 +57,10 @@ def check_selected(doc, uidoc):
         if isinstance(elem, TextNote):
             text_notes.append(elem.Text)
     
-    return text_notes[0]
-        
+    if text_notes:
+     return text_notes[0]
+    else:
+        return text_notes        
 
 
 
@@ -86,6 +90,10 @@ class TextHandler():
                 matching_text_notes.Add(text_note.Id)
             elif (FormHandler.MATCH_WITHIN_ONLY in self.selected_options) and search_term in text:
                 matching_text_notes.Add(text_note.Id)
+            elif (FormHandler.MATCH_REGEX in self.selected_options):
+                re_search_term = r'{}'.format(search_term)
+                if re.search(re_search_term, text):
+                    matching_text_notes.Add(text_note.Id)
                 
          # List to hold matching elements
         matching_text_notes = List[ElementId]()

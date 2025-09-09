@@ -1,0 +1,4 @@
+layout:
+  - CreateDependents
+  - Copy
+  - Replace
