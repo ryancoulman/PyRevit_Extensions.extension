@@ -1,6 +1,7 @@
 from Autodesk.Revit.DB import FilteredElementCollector, BuiltInCategory, Transaction
 from pyrevit import revit
 
+__title__ = "Wire Colour"
 
 doc = revit.doc
 

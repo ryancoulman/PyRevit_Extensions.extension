@@ -9,4 +9,15 @@ TO MAKE
     - The scripts can then simply just call some classes in a lib folder to handle hiding the worsket (just pass name / ID accross)
     - Could look at dev tab tool that allows you to create pushbuttons etc
     - Extend beyond worksets
+- “idle-based autosave” in Revit:
+    - Case A: User switches away from Revit (window loses focus) → trigger autosave.
+    - Case B: User is still in Revit but inactive for some threshold t (no mouse/keyboard input) → trigger autosave.
+    - Case C: If t1 < t < t2 (where tn = time since last save) then just autosave anyway 
 
+
+--Meta--
+Insted of having dropdowns on some buttons as if they want to apply to selected elements, elements in view, elements in multiple views you should create a meta class that checks if
+- user has selected any view in project browser 
+- user has selected elements 
+- else just apply to active view 
+Then run default script 

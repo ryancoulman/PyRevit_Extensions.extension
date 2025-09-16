@@ -1,0 +1,8 @@
+title:
+  en_us: |-
+    Convert 
+    Revision Clouds
+tooltip:
+  en_us: |-
+    Overview: 
+    This tool converts selected revision clouds into detail lines. It extracts the geometry of each revision cloud and creates corresponding detail lines in the active view, then deletes the original revision clouds. Note that this will produce lots of detail lines depending on the complexity of the revision cloud shapes as revit does not support polylines for detail lines.

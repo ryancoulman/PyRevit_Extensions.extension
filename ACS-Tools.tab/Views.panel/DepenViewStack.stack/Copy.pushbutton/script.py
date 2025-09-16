@@ -16,7 +16,10 @@ doc = revit.doc
 master_view = revit.active_view
 
     
-
+## TO DO ## 
+# - Add option for user to edit the annotation categories list. just store in writable json file user can edit 
+# - Cannot get view refs with this method 
+# - No tag catogry. will have to get all annotation catogries then filter for tags 
 
 
 class AnnotationCopier(object):
@@ -59,6 +62,9 @@ class AnnotationCopier(object):
         important_cats = [
             "Text Notes",
             "Detail Lines",
+            "View Reference",
+            "Dimensions",
+            "Lines",
             "Filled Regions",
             "Generic Annotations",
             "Tags",

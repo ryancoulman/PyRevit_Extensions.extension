@@ -1,0 +1,22 @@
+title:
+  en_us: |-
+    Tag 
+    Converter
+tooltip:
+  en_us: |-
+    ## Overview
+    Converts annotation tags into plain **Text Notes** at the same location, preserving their visible text.
+
+    ## Tag selection
+    - If you have tags selected, only those will be processed.
+    - If you select views in the Project Browser, the tool will process tags in those views.
+    - If no selection is made, all tags in the active view will be processed.
+
+    ## Text Style
+    - Uses a default Text Style set in the tool configuration.
+    - If no default is set, user is prompted to choose a style.
+    - Shift+Click the button to change the default text style.
+    
+    ---
+    Tip: Use Shift+Click to change the default text style.
+

@@ -17,12 +17,13 @@ class MainHandler():
             for tag in self.tags_to_process:
                 location = tag.TagHeadPosition
                 tag_text = tag.TagText
+                owner_view_id = tag.OwnerViewId
                 
                 if location and tag_text:
                     print("Processing tag with text: {}".format(tag_text))
                     
-                    # Create a TextNote at the tag's location
-                    TextNote.Create(self.doc, self.doc.ActiveView.Id, location, tag_text, self.selected_style_id)
+                    # Create a TextNote at the tag's location in the original view
+                    TextNote.Create(self.doc, owner_view_id, location, tag_text, self.selected_style_id)
                     
             # Optionally delete original tags
             if self.delete_tags():

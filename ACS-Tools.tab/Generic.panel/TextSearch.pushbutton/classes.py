@@ -23,7 +23,7 @@ class FormHandler():
         # Check the user has not selected contracdictory options 
         count = sum([s in selected_options for s in [self.MATCH_ENTIRE_WORD, self.MATCH_BEGINNING_ONLY, self.MATCH_WITHIN_ONLY, self.MATCH_REGEX]])
         if count > 1:
-            forms.alert("Contradictory criteria selected.", exitscript=True)
+            c
         if not any(item in [self.MATCH_ENTIRE_WORD, self.MATCH_BEGINNING_ONLY, self.MATCH_WITHIN_ONLY, self.MATCH_REGEX] for item in selected_options):
             forms.alert("Please select how you wish to search the text.", exitscript=True)
         return selected_options

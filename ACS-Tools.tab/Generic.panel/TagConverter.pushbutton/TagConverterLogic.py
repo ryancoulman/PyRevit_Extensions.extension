@@ -1,36 +1,30 @@
-from Autodesk.Revit.DB import FilteredElementCollector, TextElementType, IndependentTag, BuiltInParameter
+from Autodesk.Revit.DB import FilteredElementCollector, TextElementType, IndependentTag, BuiltInParameter, ElementId
 from pyrevit import forms
 import re 
+import os
+import json
 
 
 class TagManager:
-    def __init__(self, doc, active_view):
+    def __init__(self, doc):
         self.doc = doc
-        self.active_view = active_view
 
-    def get_all_tags_in_view(self):
-        """Get all annotation tags in the active view."""
+    def get_all_tags_in_view(self, view):
+        """Get all annotation tags in the view."""
         # Collect all tags in the project
         collector = FilteredElementCollector(self.doc).OfClass(IndependentTag)
-        # print("Total tags found: {}".format(collector.GetElementCount()))
         # Store all tags to be processed in a list to avoid modifying the collection while iterating
         tags_to_process = []
         for tag in collector:
-            if tag.OwnerViewId == self.active_view.Id and not tag.IsHidden(self.active_view):
+            if tag.OwnerViewId == view.Id and not tag.IsHidden(view):
                 tags_to_process.append(tag)
 
-        if not tags_to_process:
-            forms.alert("No annotation tags are selected.", exitscript=True)
-
-        print("Processing {} tags in the active view.".format(len(tags_to_process)))
+        print("##### Processing {} tags in {} ######".format(len(tags_to_process), view.Name))
 
         return tags_to_process
     
-    def get_selected_annotation_tags(self, uidoc):
+    def get_selected_annotation_tags(self, selected_elements):
         """Get all annotation tags selected by the user."""
-        
-        # Get the currently selected elements in the active view
-        selected_elements = self.get_selected_elements(uidoc)
         
         # Filter the selected elements to only include annotation tags
         tags_to_process = []
@@ -45,24 +39,58 @@ class TagManager:
 
         return tags_to_process
     
-    def get_selected_elements(self, uidoc):
-        """Property that retrieves selected views or promt user to select some from the dialog box."""
-        doc = uidoc.Document
-        selection = uidoc.Selection  
-
-        try:
-            selected_elements = [doc.GetElement(e_id) for e_id in selection.GetElementIds()]
-            if not selected_elements:
-                forms.alert("No elements  were selected.\nPlease, try again.", exitscript=True)
-        except:
-            return
-
-        return selected_elements
 
 
 class TextStyle:
+    CONFIG_PATH = os.path.join(os.path.dirname(__file__), "text_style.json")
+
     def __init__(self, doc):
+        self.doc = doc
         self.text_styles = self.get_all_text_styles(doc)
+        self.config = self._load_config()
+
+        default_style_id = self.get_configured_style_id()
+        ask_every_time = self.should_ask_every_time()
+
+        # If no default saved OR user wants to be asked each time
+        if default_style_id is None or ask_every_time:
+            selected_style = self.select_style()
+            if not selected_style:
+                forms.alert("No text style selected. Exiting.", exitscript=True)
+
+            self.selected_style_id = selected_style.Id
+
+            # Ask whether to save as default
+            if forms.alert("Use this text style as default?", yes=True, no=True):
+                self.set_default_text_style(self.selected_style_id, ask_every_time=False)
+        else:
+            self.selected_style_id = default_style_id
+
+    # --- Configuration handling ---
+
+    def _load_config(self):
+        if os.path.exists(self.CONFIG_PATH):
+            with open(self.CONFIG_PATH, "r") as f:
+                return json.load(f)
+        return {}
+
+    def save_config(self):
+        with open(self.CONFIG_PATH, "w") as f:
+            json.dump(self.config, f, indent=4)
+
+    def get_configured_style_id(self):
+        val = self.config.get("default_text_style_id")
+        return ElementId(int(val)) if val is not None else None
+
+    def should_ask_every_time(self):
+        return self.config.get("ask_every_time", True)
+
+    def set_default_text_style(self, style_id, ask_every_time):
+        self.config["default_text_style_id"] = style_id.IntegerValue
+        self.config["ask_every_time"] = ask_every_time
+        self.save_config()
+
+    # ---- Methods to handle text styles ----
 
     def get_all_text_styles(self, doc):
         """Get all text styles in the Revit project using TextElementType."""
@@ -110,13 +138,10 @@ class TextStyle:
             # Return the selected text style object
             return self.text_styles[selected_option]
         return None  # Return None if no option was selected
-
-    def get_selected_style_id(self):
-        """Get the ElementId of the selected text style."""
-        selected_style = self.select_style()  # Get the selected style from the user
-        if selected_style:
-            # Return the ElementId of the selected text style
-            return selected_style.Id
-        return None  # Return None if no text style was selected
+    
+    @property
+    def return_selected_style(self):
+        """Return the selected text style object."""
+        return self.selected_style_id  # May return None if no style was selected
 
 
