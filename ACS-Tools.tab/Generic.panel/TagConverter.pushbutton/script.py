@@ -27,7 +27,6 @@ def main():
     elif context.has_active_view:
         tags_to_process.extend(tag_manager.get_all_tags_in_view(targets[0]))
 
-
     # Initialize the TextStyle class with the current Revit document
     text_styles = TextStyle(doc)
     # Get the ElementId of the selected text style
@@ -36,4 +35,5 @@ def main():
     MainHandler(doc, tags_to_process, selected_style_id)
 
 
-main()
+if __name__ == "__main__":
+    main()

@@ -2,6 +2,8 @@ from view_handler import ViewHandler, FilterHandler
 from main_helper import MainHelper
 from helper_classes import ListItem
 from helper_classes import CheckBoxState
+from wpf_helper import get_wpf_path
+
 import os
 
 # .NET IMPORTS
@@ -31,7 +33,7 @@ class SelectFilters(Window):
 
     def __init__(self):
         # Load Resources for WPF form 
-        path_xaml_file = os.path.join(PATH_SCRIPT, 'CopyFilters.xaml')
+        path_xaml_file = get_wpf_path("CopyFilters.xaml")
         wpf.LoadComponent(self, path_xaml_file)
 
         # Update Text

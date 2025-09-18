@@ -13,7 +13,10 @@ TO MAKE
     - Case A: User switches away from Revit (window loses focus) → trigger autosave.
     - Case B: User is still in Revit but inactive for some threshold t (no mouse/keyboard input) → trigger autosave.
     - Case C: If t1 < t < t2 (where tn = time since last save) then just autosave anyway 
-
+- “Why is Element Hidden in View?” Diagnostic Tool
+    - A diagnostic command that checks common visibility blockers (hidden in view, worksets, filters, phases, 
+      category visibility, crop/view range, etc.).
+    - Returns a clear list of possible reasons why a selected element is invisible in the current view.
 
 --Meta--
 Insted of having dropdowns on some buttons as if they want to apply to selected elements, elements in view, elements in multiple views you should create a meta class that checks if
