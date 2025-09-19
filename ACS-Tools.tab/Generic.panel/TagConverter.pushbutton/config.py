@@ -7,7 +7,7 @@ from TagConverterLogic import TextStyle   # shared class with JSON handling
 doc = revit.doc
 
 # Init TextStyle manager
-ts = TextStyle(doc)
+ts = TextStyle(doc, setting_default=True)
 
 # Force user to pick a style (ignores any saved defaults)
 selected_style = ts.select_style()

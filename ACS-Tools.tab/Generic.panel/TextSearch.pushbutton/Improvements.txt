@@ -1,4 +1,0 @@
-- Add in Selection context functionality 
-- Improve search form to include string and the checkboxes 
-- Add in OR / AND / NOT for filtering strings that match multiple types or dependent criteria 
-- Option to deselct matches (ie may have text selection and want everything but x) : basicly not condition 

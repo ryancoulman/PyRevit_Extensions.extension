@@ -1,0 +1,9 @@
+title:
+  en_us: Show Me
+tooltip:
+  en_us: |-
+    Show selected elements in the current view.
+    Select an element from the list to zoom to it.
+
+# TO DO 
+# - Add non modal abiity (when switched ShowDialog() -> Show() then could not get pyrevit script to run)

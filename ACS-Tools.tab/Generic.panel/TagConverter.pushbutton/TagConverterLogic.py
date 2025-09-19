@@ -44,25 +44,28 @@ class TagManager:
 class TextStyle:
     CONFIG_PATH = os.path.join(os.path.dirname(__file__), "text_style.json")
 
-    def __init__(self, doc):
+    def __init__(self, doc, setting_default=False):
         self.doc = doc
+        # Get all text styles in the project
         self.text_styles = self.get_all_text_styles(doc)
-        self.config = self._load_config()
 
+        # Read json config and fetch parameters
+        self.config = self._load_config()
         default_style_id = self.get_configured_style_id()
         ask_every_time = self.should_ask_every_time()
 
-        # If no default saved OR user wants to be asked each time
-        if default_style_id is None or ask_every_time:
+        # If no default saved OR user wants to be asked each time OR default style not in project, prompt user to select
+        if default_style_id is None or ask_every_time or not self.is_default_in_project():
             selected_style = self.select_style()
             if not selected_style:
                 forms.alert("No text style selected. Exiting.", exitscript=True)
 
             self.selected_style_id = selected_style.Id
 
-            # Ask whether to save as default
-            if forms.alert("Use this text style as default?", yes=True, no=True):
-                self.set_default_text_style(self.selected_style_id, ask_every_time=False)
+            # Ask whether to save as default (if they have not shift + click to set default)
+            if not setting_default:
+                if forms.alert("Use this text style as default?", yes=True, no=True):
+                    self.set_default_text_style(self.selected_style_id, ask_every_time=False)
         else:
             self.selected_style_id = default_style_id
 
@@ -93,7 +96,8 @@ class TextStyle:
     # ---- Methods to handle text styles ----
 
     def get_all_text_styles(self, doc):
-        """Get all text styles in the Revit project using TextElementType."""
+        """Get all text styles in the Revit project using TextElementType.
+        Returns a dictionary with text style names as keys and TextElementType objects as values."""
         
         # Collect all TextElementType elements
         text_style_elements = FilteredElementCollector(doc).OfClass(TextElementType).ToElements()
@@ -138,6 +142,14 @@ class TextStyle:
             # Return the selected text style object
             return self.text_styles[selected_option]
         return None  # Return None if no option was selected
+    
+    def is_default_in_project(self):
+        """Check if the default text style is still in the project."""
+        default_style_id = self.get_configured_style_id()
+        text_style_ids = [ts.Id for ts in self.text_styles.values()]
+        if default_style_id and default_style_id in text_style_ids:
+            return True
+        return False
     
     @property
     def return_selected_style(self):

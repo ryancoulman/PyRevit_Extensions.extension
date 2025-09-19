@@ -5,3 +5,9 @@ tooltip:
     Overview: 
     - Select all text notes in the active view that match a given string.
     - If select text note before then will automatically select all matching notes 
+
+# TO DO
+# - Add in Selection context functionality
+# - Improve search form to include string and the checkboxes
+# - Add in OR / AND / NOT for filtering strings that match multiple types or dependent criteria
+# - Option to deselect matches (ie may have text selection and want everything but x) : basically not condition

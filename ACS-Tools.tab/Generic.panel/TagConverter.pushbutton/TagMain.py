@@ -36,8 +36,8 @@ class MainHandler():
     def delete_tags(self):
         # If the user clicks "ok", the result will be True and the script will stop.
         result = forms.alert(
-            "Do you want to delete the original tags? Select 'Cancel' to keep.",
-            ok=True,
-            cancel=True
+            "Do you want to delete the original tags?",
+            yes="Yes, delete",
+            no="No, keep"
         )
         return result
