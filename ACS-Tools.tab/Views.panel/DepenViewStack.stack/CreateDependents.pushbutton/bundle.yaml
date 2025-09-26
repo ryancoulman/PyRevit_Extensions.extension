@@ -1,0 +1,9 @@
+title:
+  en_us: Create Dependents
+tooltip:
+  en_us: |-
+    **Overview:**
+    Create dependent views from active view. Select scope boxes to apply to dependent views. View name = Base Name (provided by user) + Scope Box Name.
+    
+    **Instructions:**
+    Open a view you want to create dependents from (ensure you have clicked in the view window to make it active). Click the button. Provide a base name for the views. Select scope boxes to apply to dependent views. Click OK.

@@ -1,0 +1,12 @@
+title:
+  en_us: Hide in Dependents
+tooltip:
+  en_us: |-
+    **Overview:**
+    Hide selected elements in the active master view and all its dependent views simultaneously. This tool is useful for maintaining a clean and focused view across multiple related views.
+    
+    **Instructions:**
+    Select the elements you wish to hide in the active master view. Then click this button to hide those elements in the active view and all dependent views.
+
+# TO DO:
+# Can you check if element is visble in ech depenedent view before hiding it? would this even save any time 

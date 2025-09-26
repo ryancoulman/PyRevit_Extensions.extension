@@ -3,7 +3,7 @@
 
 from pyrevit import forms, revit
 import clr
-from Autodesk.Revit.DB import FilteredElementCollector, View, BuiltInCategory, Transaction, ElementTransformUtils, CategoryType, ElementId
+from Autodesk.Revit.DB import FilteredElementCollector, View, Element, Transaction, ElementTransformUtils, CategoryType, ElementId
 
 
 # Create a .NET List for ElementId
@@ -13,8 +13,11 @@ from System.Collections.Generic import List
 from helefuncs import ViewHandler
 
 doc = revit.doc
+uidoc = __revit__.ActiveUIDocument
 master_view = revit.active_view
 
+## MODIFICATON: Pyrevit has tool Select-> Detil elements which esily gets all 2d detail elements in view much better than my tool 
+## so get logic from there and implement 
     
 ## TO DO ## 
 # - Add option for user to edit the annotation categories list. just store in writable json file user can edit 
@@ -57,7 +60,7 @@ class AnnotationCopier(object):
 
         return list(set(elements))
     
-    def get_annotations_from_view(self, view):
+    def get_annotations_from_viewOLD(self, view):
         """Return only the important annotation elements from a view."""
         important_cats = [
             "Text Notes",
@@ -86,6 +89,26 @@ class AnnotationCopier(object):
             elements.extend(elems)
 
         return elements  # return ElementIds directly
+    
+    def get_annotations_from_view(self, view):
+        """Return only the important annotation elements from a view."""
+        # Collect all elements in current view 
+        collector1 = FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType()
+        # Filter out types of 'Other' 
+        collector = [el for el in collector1 if el.Category is not None]
+
+        # List to hold view-specific element IDs
+        view_specific_ids = []
+
+        for el in collector:
+            try:
+                if el.ViewSpecific:   # property on Element
+                    view_specific_ids.append(el.Id)
+            except Exception as e:
+                # some elements may not expose ViewSpecific
+                pass
+
+        return view_specific_ids
 
 
     def copy_annotations(self, source_views):
@@ -103,6 +126,7 @@ class AnnotationCopier(object):
                     continue
 
                 element_ids = List[ElementId](elements)
+                # uidoc.Selection.SetElementIds(element_ids)
                 copied_ids = ElementTransformUtils.CopyElements(
                     view,
                     element_ids,

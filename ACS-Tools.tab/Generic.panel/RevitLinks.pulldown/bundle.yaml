@@ -5,4 +5,6 @@ layout:
   - ViewsOnSheet
 
 # TO DO 
+# Modify so that the user can make their own templates and then select these in the tool 
+# so as well as a revit link annotation catagory off they can make their own and then use config file to set up name etc
 # 1. Determine if revit link model catogries are set to custom (think i did this beofre but for link isntance in old one)

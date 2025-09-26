@@ -1,0 +1,9 @@
+title:
+  en_us: Override in Dependents
+tooltip:
+  en_us: |-
+    **Overview:**
+    Override specific elements in dependent views based on the active master view. This tool allows you to maintain consistency across views while making necessary adjustments.
+    
+    **Instructions:**
+    Within the parent / master view select the elements you have overridden graphics in view. Then click this button to push those overrides to all dependent views.

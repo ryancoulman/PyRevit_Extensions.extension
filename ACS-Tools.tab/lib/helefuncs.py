@@ -55,7 +55,7 @@ def get_selected_views(uidoc, doc):
 
     return views
 
-def get_dependent_views(doc, active_view):
+def get_dependent_views(doc, active_view, do_print=False):
     """Get all dependent views of a primary view."""
     
     # Check if the view has dependent views
@@ -68,9 +68,12 @@ def get_dependent_views(doc, active_view):
             dependent_view = doc.GetElement(view_id)
             dependent_views.append(dependent_view)
         
-        print("Found {} dependent views for the primary view:".format(len(dependent_views)))
-        for view in dependent_views:
-                print("Dependent View Name: {}".format(view.Name))
+        # Print view names if do_print is True 
+        if do_print:
+            print("Found {} dependent views for the primary view:".format(len(dependent_views)))
+            for view in dependent_views:
+                    print("Dependent View Name: {}".format(view.Name))
+
         return dependent_views
     else:
         forms.alert("No dependent views found for this primary view.", exitscript=True)

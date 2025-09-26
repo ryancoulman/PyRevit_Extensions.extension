@@ -2,7 +2,7 @@ title:
   en_us: Show Me
 tooltip:
   en_us: |-
-    Show selected elements in the current view.
+    Show selected elements in the current view if present, otherwise zoom to them.
     Select an element from the list to zoom to it.
 
 # TO DO 

@@ -2,15 +2,12 @@ from Autodesk.Revit.DB import Transaction, ElementId
 from pyrevit import revit, forms
 from System.Collections.Generic import List
 from helefuncs import get_selected_elements, get_dependent_views
+from System.Windows import MessageBox
 
-__title__ = "Hide In Dependents"
-__doc__ = "Overview:\nIf working in a primary view this allows you to hide an element in the current master view and all dependent views"
 
 doc = revit.doc
 active_view = revit.active_view
 uidoc = __revit__.ActiveUIDocument
-
-
 
 if __name__ == "__main__":
 
@@ -27,7 +24,7 @@ if __name__ == "__main__":
                           elements_to_hide.Add(element.Id)
                 if elements_to_hide.Count > 0:  # Only hide if there are sections to hide
                     view.HideElements(elements_to_hide)
-            print("Successfully hidden element(s) in all dependent views")
+            MessageBox.Show("Successfully hidden element(s) in all dependent views", 'Success!')
             t.Commit()
                      
 

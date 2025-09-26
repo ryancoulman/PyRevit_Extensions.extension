@@ -8,6 +8,7 @@ from System.Collections.Generic import List
 doc = revit.doc
 uidoc = revit.uidoc
 
+
 def get_selected_elements():
     '''Returns a dictionary of currently selected elements {Family Name + Type (ID): elemID}'''
     # Get selected elements from the current Revit selection

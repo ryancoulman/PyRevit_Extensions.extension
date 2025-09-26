@@ -4,6 +4,8 @@
 #   selected_scopeboxes = ScopeBoxSelector(revit.doc).get_selected()
 
 from pyrevit import forms, DB, revit
+from Autodesk.Revit.Exceptions import ArgumentException, InvalidOperationException
+
 
 __title__ = "Create Dependents"
 
@@ -88,7 +90,22 @@ class DependentViewCreator(object):
 
                 # Rename view: "MasterName - ScopeBoxName"
                 new_name = "{} - {}".format(self.base_name, sb.Name)
-                dep_view.Name = new_name
+
+                success = False
+                suffix = 1
+                # If non unique name is given, try adding suffixes
+                while not success:
+                    try:
+                        dep_view.Name = new_name
+                        success = True
+                    except ArgumentException:
+                        # Name already exists → try a new suffix
+                        new_name = "{} - {} Copy {}".format(self.base_name, sb.Name, suffix)
+                        suffix += 1
+                    except InvalidOperationException as e:
+                        forms.alert('Element cannot be changed: {}'.format(e), exitscript=True)
+                        break
+
 
                 new_views.append(dep_view)
 

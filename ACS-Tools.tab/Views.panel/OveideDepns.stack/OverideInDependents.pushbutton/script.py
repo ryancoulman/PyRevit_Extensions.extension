@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-
-__title__ = "Override In Dependents"
-
 from pyrevit import revit, forms
 from helefuncs import get_selected_elements, get_dependent_views
+from System.Windows import MessageBox
 
 doc = revit.doc
 active_view = doc.ActiveView
@@ -39,4 +37,4 @@ if __name__ == '__main__':
                     # Handle cases where an element might not exist in a specific dependent view
                     print(e)
 
-    print("Successfully applied graphic overrides to all dependent views")
+    MessageBox.Show("Successfully applied graphic overrides to all dependent views", 'Success!')
