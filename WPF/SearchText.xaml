@@ -1,1 +1,321 @@
-C:/Users/RyanCoulman/OneDrive - Accord/Documents/WPFpreview/WPFpreview/SearchText.xaml
+<Window x:Class="WPFpreview.SearchText"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+		xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="Search Text"
+        Width="270"
+        ResizeMode="NoResize"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        MinHeight="250">
+
+    <!-- Global Resources -->
+    <Window.Resources>
+        <!-- Global font size -->
+        <sys:Double x:Key="GlobalFontSize">13</sys:Double>
+        <Thickness x:Key="StandardMargin">0,5</Thickness>
+        <Thickness x:Key="LeftButtonMargin">0,2,2,2</Thickness>
+        <Thickness x:Key="RightButtonMargin">2,2,0,2</Thickness>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <!-- Styles -->
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="FontSize" Value="{StaticResource GlobalFontSize}"/>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="MinHeight" Value="60"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="FontSize" Value="{StaticResource GlobalFontSize}"/>
+        </Style>
+
+        <Style TargetType="Label">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,5,0"/>
+            <Setter Property="FontSize" Value="{StaticResource GlobalFontSize}"/>
+        </Style>
+                
+
+        <Style TargetType="ComboBox">
+            <Setter Property="FontSize" Value="{StaticResource GlobalFontSize}"/>
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,0"/>
+            <Setter Property="FontSize" Value="{StaticResource GlobalFontSize}"/>
+        </Style>
+
+        <Style TargetType="Expander" x:Key="MinimalExpanderStyle">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Expander">
+                        <DockPanel>
+                            <!-- Header -->
+                            <ToggleButton x:Name="HeaderToggleButton"
+                                          DockPanel.Dock="Top"
+										  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+										  Background="Transparent"
+										  BorderBrush="Transparent"
+										  Focusable="False"
+										  HorizontalAlignment="Left">
+
+                                <!-- Minimal ToggleButton style to remove default highlight etc -->
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <!-- Only show content, no background or border -->
+                                        <ContentPresenter/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <!-- Chevron -->
+                                    <Path x:Name="Arrow"
+										  Width="10" Height="10"
+										  Margin="0,0,5,0"
+										  Stroke="Black"
+										  StrokeThickness="2"
+										  Data="M 0 7 L 5 0 L 10 7"/>
+                                    <!-- Header text -->
+                                    <TextBlock x:Name="HeaderText"
+											   Text="{TemplateBinding Header}"
+											   VerticalAlignment="Center"
+											   Opacity="0.5"
+											   ToolTipService.ShowDuration="60000">
+                                        <TextBlock.ToolTip>
+                                            <StackPanel x:Name="HeaderToolTip" Margin="5" MaxWidth="300">
+                                                <!-- default placeholder content -->
+                                            </StackPanel>
+                                        </TextBlock.ToolTip>
+                                    </TextBlock>
+                                    <!-- default collapsed opacity -->
+                                </StackPanel>
+                            </ToggleButton>
+
+                            <!-- Expander content -->
+                            <ContentPresenter Margin="{StaticResource StandardMargin}"
+											  Visibility="{TemplateBinding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </DockPanel>
+
+                        <!-- Chevron flip, hover underline, opacity + header text -->
+                        <ControlTemplate.Triggers>
+                            <!-- Flip chevron when expanded -->
+                            <Trigger Property="IsExpanded" Value="True">
+                                <Setter TargetName="Arrow" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <RotateTransform Angle="180" CenterX="5" CenterY="3.5"/>
+                                    </Setter.Value>
+                                </Setter>
+
+                                <!-- Regex safe mode: full opacity, optional header text -->
+                                <Setter TargetName="HeaderText" Property="Opacity" Value="1"/>
+                                <Setter Property="Header" Value="Regex Safe Mode"/>
+
+                                <!-- Change tooltip dynamically -->
+                                <Setter TargetName="HeaderText" Property="ToolTip">
+                                    <Setter.Value>
+                                        <ToolTip  MaxWidth="300" ToolTipService.ShowDuration="60000">
+                                            <StackPanel Margin="5">
+                                                <!-- Title -->
+                                                <TextBlock Text="Regex Safe Mode" FontWeight="Bold" FontSize="13" Margin="0,0,0,5"/>
+                                                <!-- Introduction -->
+                                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+													In this mode, you can type normal text safely. Special symbols will be treated as normal characters unless you put them inside square brackets <Run FontWeight="Bold">[]</Run>.
+                                                </TextBlock>
+                                                <!-- Using Buttons -->
+                                                <TextBlock Text="Using the Buttons:" FontWeight="Bold" Margin="0,5,0,2"/>
+                                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+													Click the buttons above to add common search patterns. These are automatically placed inside brackets. For example: <Run FontWeight="Bold">[0-9]</Run> or <Run FontWeight="Bold">[.]</Run>.
+                                                </TextBlock>
+                                                <!-- Syntax Inside Brackets -->
+                                                <TextBlock Text="Syntax Inside Brackets:" FontWeight="Bold" Margin="0,5,0,2"/>
+                                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+													Inside brackets, the syntax follows standard regex rules. Only the basic commands are provided as buttons for simplicity, but you can use any regex patterns inside brackets.
+                                                </TextBlock>
+                                                <!-- Groups -->
+                                                <TextBlock Text="Groups:" FontWeight="Bold" Margin="0,5,0,2"/>
+                                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+													You can create groups by using parentheses inside brackets. Groups let you combine multiple options. For example: <Run FontWeight="Bold">[(apple|orange)]</Run> matches either "apple" or "orange". You can also nest groups: <Run FontWeight="Bold">[(red|green|blue) (apple|banana)]</Run> matches "red apple", "green banana", etc.
+                                                </TextBlock>
+                                                <!-- Safety Explanation -->
+                                                <TextBlock Text="Why it’s Safe:" FontWeight="Bold" Margin="0,5,0,2"/>
+                                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+													Any special character you type outside brackets is automatically escaped, so it will match literally. You can use any characters safely — just put advanced ones in brackets if needed.
+                                                </TextBlock>
+                                                <!-- Advanced Users -->
+                                                <TextBlock Text="Advanced (Optional):" FontWeight="Bold" Margin="0,5,0,2"/>
+                                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,0" FontStyle="Italic">
+													Standard regex commands still work inside brackets. For example, typing <Run FontWeight="Bold">*</Run> outside brackets is treated as a literal *, but inside brackets you can use <Run FontWeight="Bold">[*]</Run> to match zero or more of the preceding element.
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </ToolTip>
+                                    </Setter.Value>
+                                </Setter>
+
+                            </Trigger>
+
+                            <!-- Collapsed / plain text mode -->
+                            <Trigger Property="IsExpanded" Value="False">
+
+                                <!-- Plain text mode: reduced opacity, optional header text -->
+                                <Setter TargetName="HeaderText" Property="Opacity" Value="0.8"/>
+                                <Setter Property="Header" Value="Plain Text Mode"/>
+
+                                <!-- Change tooltip dynamically -->
+                                <Setter TargetName="HeaderText" Property="ToolTip">
+                                    <Setter.Value>
+                                        <ToolTip>
+                                            <StackPanel Margin="5" MaxWidth="250">
+                                                <TextBlock Text="Plain Text Mode:" FontWeight="Bold" FontSize="13" Margin="0,0,0,5"/>
+                                                <TextBlock TextWrapping="Wrap" Margin="0,2,0,0">
+													You are in plain text mode. Type normally, no regex rules apply.
+                                                </TextBlock>
+                                                <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontStyle="Italic">
+													Expand to enter ReGeX safe mode.
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </ToolTip>
+                                    </Setter.Value>
+                                </Setter>
+
+                            </Trigger>
+
+                            <!-- Underline header text on hover -->
+                            <Trigger SourceName="HeaderText" Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HeaderText" Property="TextDecorations" Value="Underline"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <StackPanel>
+            <!-- Match Row -->
+            <Grid Margin="{StaticResource StandardMargin}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Label x:Name="MatchLabel" Content="Match"/>
+                <ComboBox x:Name="MatchComboBox" Grid.Column="2" Width="150" SelectionChanged="MatchComboBox_SelectionChanged"/>
+            </Grid>
+
+            <!-- TextBox -->
+            <Grid>
+                <TextBox x:Name="InputTextBox"
+                         TextChanged="InputTextBox_TextChanged"
+                         SelectionChanged="InputTextBox_SelectionChanged"
+                         GotFocus="InputTextBox_GotFocus"
+                         LostFocus="InputTextBox_LostFocus"/>
+                <!-- Overlay 'Enter text' hint in textbox -->
+                <TextBlock x:Name="InputHint"
+                           Text="Enter text"
+                           Foreground="Gray"
+                           Opacity="0.8"
+                           IsHitTestVisible="False"
+                           Margin="6,8,0,0"
+                           VerticalAlignment="Top"
+						   FontSize="{StaticResource GlobalFontSize}"
+                           FontStyle="Italic"
+                           Visibility="Visible"/>
+            </Grid>
+
+            <!-- Regex Shortcut Buttons -->
+            <Expander x:Name="ReSafeExpander" IsExpanded="True" Margin="{StaticResource StandardMargin}" Style="{StaticResource MinimalExpanderStyle}">
+
+                <UniformGrid Columns="2" HorizontalAlignment="Stretch">
+                    <Button x:Name="BtnLetter" Content="Any Letter [a-zA-Z]" Tag="[[a-zA-Z]]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Matches any upper or lower case letter" Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnNum" Content="Any Num [\d]" Tag="[\d]" Margin="{StaticResource RightButtonMargin}" ToolTip="Matches any digit (0–9)" Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnChar" Content="Any Char [.]" Tag="[.]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Matches any single character except newline" Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnWhitespace" Content="Whitespace [\s]" Tag="[\s]" Margin="{StaticResource RightButtonMargin}" ToolTip="Matches spaces, tabs, and other whitespace" Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnZeroOrMore" Content="Zero or More [*]" Tag="[*]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Zero or more of the preceding character/group" Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnOneOrMore" Content="One or More [+]" Tag="[+]" Margin="{StaticResource RightButtonMargin}" ToolTip="One or more of the preceding character/group" Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnExactlyN" Content="Exactly N [{N}]" Tag="{}[{N}]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Exactly N of the preceding character/group. Replace N with a number." Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnRangeN" Content="Range N-M [{N,M}]" Tag="{}[{N,M}]" Margin="{StaticResource RightButtonMargin}" ToolTip="N to M times. Leave M blank {N,} for at least N times" Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnOptional" Content="Optional [?]" Tag="[?]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Makes the preceding element optional. Example: colou?r matches both 'color' and 'colour' as the 'u' is optional." Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnSet" Content="Set [[abc]]" Tag="[[abc]]" Margin="{StaticResource RightButtonMargin}" ToolTip="Define a character set or range. Example: [abc] matches a, b, or c; [A-Z] matches any uppercase letter. Replace abc with a set." Click="ReShortcutButton_Click"/>
+
+                    <Grid>
+                        <Button x:Name="BtnAndOr" Content="Or [|]" Tag="[|]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Matches either the left or right expression" Click="ReShortcutButton_Click"/>
+
+                        <!-- Popup floating next to the OR button -->
+                        <Popup x:Name="OrPopup"
+                               PlacementTarget="{Binding ElementName=BtnAndOr}"
+                               Placement="Left"
+                               StaysOpen="True"
+                               HorizontalOffset="-20"
+                               VerticalOffset="-50"
+							   AllowsTransparency="True"
+                               PopupAnimation="Scroll"
+							   Opened="OrPopup_Opened">
+                            <Border Background="White" 
+                                    BorderBrush="Gray" 
+                                    BorderThickness="1" 
+                                    CornerRadius="5" 
+                                    Width="200"
+                                    Padding="10" >
+                                <StackPanel>
+                                    <DockPanel HorizontalAlignment="Right">
+                                        <Button x:Name="AndOrToggle" 
+                                                Content="Mode: OR" 
+                                                Margin="0,0,5,0"
+                                                Padding="5,0"
+                                                Background="Transparent"
+                                                BorderBrush="Gray"
+                                                Click="AndOrToggle_Click"/>
+                                        <Button x:Name="PopBtnClose" Content="X" Width="20" Height="20" Padding="0" Click="PopBtnClose_Click" BorderBrush="#FF9C2323" Foreground="#FF9C2323" Background="White"/>
+                                    </DockPanel>
+                                    <!-- Where we dynamically add textboxes -->
+                                    <StackPanel x:Name="ConditionPanel" Margin="{StaticResource StandardMargin}"/>
+                                    <!-- Add / Remove and Okay buttons -->
+                                    <UniformGrid Columns="2" HorizontalAlignment="Stretch" Margin="{StaticResource StandardMargin}">
+                                        <Button x:Name="PopBtnAddBox" Content="Add" Margin="0,0,5,0" Click="PopBtnAddBox_Click"/>
+                                        <Button x:Name="PopBtnRmvBox" Content="Remove" Margin="5,0,0,0" IsEnabled="False" Click="PopBtnRmvBox_Click"/>
+                                    </UniformGrid>
+                                    <Button x:Name="PopBtnOk" Content="Apply Changes" HorizontalAlignment="Stretch" Margin="{StaticResource StandardMargin}" Click="PopBtnOk_Click"/>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                    </Grid>
+
+                    <Button x:Name="BtnGroup" Tag="(...)" Content="Group [(...)}" Margin="{StaticResource RightButtonMargin}" Click="ReShortcutButton_Click"/>
+                </UniformGrid>
+            </Expander>
+
+            <!-- Checkboxes -->
+            <Grid Margin="{StaticResource StandardMargin}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <CheckBox x:Name="MatchCaseCheckBox" Content="Match Case"/>
+                <CheckBox x:Name="AnnotationTagsCheckBox" Grid.Column="2" Content="Inc. Annotation Tags"/>
+            </Grid>
+
+            <!-- Search Button -->
+            <Button x:Name="SearchButton" Content="Search" Width="95" HorizontalAlignment="Stretch" Margin="{StaticResource StandardMargin}" Click="SearchButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
+
+
+<!-- Explain how user can use groups () -->
+<!-- Standardise all Button tooltips to have overview and examples in headers with fix window and all code in bold -->
+<!-- And opt disabled if user doesnt selct contains in combobox. curretly combobox still accessble while in pop up so user could chnge to AND messig it up, or they could even write it at any time themselves  -->
+<!-- Safe Rgeex strategy explained in GPT chat -->
+<!-- Can add a not option to the and / or button-->
+<!-- Full regex mode should update expander header text and disable expansion -->
+    
+<!-- Optional: When user scrolls wth Mbutton over Exactly n then it filters through values -->
+<!-- Optional: Can add some of those right click menu functiolity to some buttons. ie for sets righ clikck and you get some dfault ([a-z], [A-Z], [symbols] etc. -->
