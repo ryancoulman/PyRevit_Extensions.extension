@@ -17,6 +17,13 @@ TO MAKE
     - A diagnostic command that checks common visibility blockers (hidden in view, worksets, filters, phases, 
       category visibility, crop/view range, etc.).
     - Returns a clear list of possible reasons why a selected element is invisible in the current view.
+- "Sync and shut down" + "Sync, Export, (optional) Shutdown" 
+    - You could potentially create a script that monitors Revit's journal file for sync completion messages, then triggers a shutdown easily through os module 
+- 'Cross-program Revit ↔ Navisworks selection tool'
+    - Goal: Select an element in Revit and instantly highlight the same element in Navisworks.
+    - Revit add-in: Capture Element.UniqueId when user selects an element.
+    - Bridge: Send UniqueId to Navisworks (via JSON file, named pipe, or socket).
+    - Navisworks add-in: Listen for incoming UniqueId → search ModelItem.PropertyCategories for matching “Revit GUID” → select & zoom in Navisworks viewer.
 
 --Meta--
 Insted of having dropdowns on some buttons as if they want to apply to selected elements, elements in view, elements in multiple views you should create a meta class that checks if
@@ -24,3 +31,4 @@ Insted of having dropdowns on some buttons as if they want to apply to selected 
 - user has selected elements 
 - else just apply to active view 
 Then run default script 
+Need option for views in sheet vs 2d sheet AND search entire project 

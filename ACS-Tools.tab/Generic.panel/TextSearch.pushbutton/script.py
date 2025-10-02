@@ -10,7 +10,7 @@ active_view = revit.active_view
 
 def selected_main():
 
-    form_handler = FormHandlerNEW()
+    form_handler = FormHandler(doc, active_view)
 
     if check_selected(doc, uidoc):
         selected_options = FormHandler.MATCH_ENTIRE_WORD
@@ -56,4 +56,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    selected_main()

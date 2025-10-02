@@ -55,6 +55,12 @@ class ElementViewer(Window):
         self.listbox.SelectionChanged += self.listbox_selection_changed
         self.Closing += self.on_closing
 
+        # If only one item is present, disable navigation buttons and automatically show it
+        if self.listbox.Items.Count <= 1:
+            self.prev_b.IsEnabled = False
+            self.next_b.IsEnabled = False
+            self.show_b_click(None, None)
+
     def prev_b_click(self, sender, args):
         # Select previous element in the list
         if self.listbox.Items.Count == 0:
