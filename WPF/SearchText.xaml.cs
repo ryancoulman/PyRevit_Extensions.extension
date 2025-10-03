@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Media;
 
 
@@ -35,13 +36,21 @@ namespace WPFpreview
     {
         private List<Button> _quantifierButtons;
         private List<Button> _singleCharButtons;
+        private bool _isExpanderExpanded;
+        private bool _ignoreExpanderEvent = false;
+        private bool _isAndEnabled = true; // dummy init to avoid null refs
+
         public SearchText()
         {
             InitializeComponent();
 
+            // cache state of expander 
+            _isExpanderExpanded = ReSafeExpander.IsExpanded;
+
             // Populate the ComboBox with options
             MatchComboBox.ItemsSource = MatchOptionKeys.MatchOptions.Values.ToList();
             MatchComboBox.SelectedItem = MatchOptionKeys.MatchOptions["_Contains"]; // Set default selection
+
 
             // Group ReShortctut buttons for easier enabling/disabling
             _singleCharButtons = new List<Button>
@@ -53,16 +62,22 @@ namespace WPFpreview
                 BtnZeroOrMore, BtnOneOrMore, BtnExactlyN, BtnRangeN, BtnOptional
             };
 
-            // Suppose your ComboBox is named ModeComboBox
-            MatchComboBox.SelectionChanged += MatchComboBox_SelectionChanged;
+            RegexTooltipHelper.ApplyAll(this);
+
         }
 
         // Track last activated text box -> so regex buttons can input into any pop ups
         private TextBox _activeTextBox = null;
 
 
+
         private void MatchComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (MatchComboBox.SelectedItem == null)
+            {
+                return; // Ignore deselection event
+            }
+
             // Get selected combo box value
             string comboxText = MatchComboBox.SelectedItem != null
                 ? MatchComboBox.SelectedItem.ToString()
@@ -72,14 +87,26 @@ namespace WPFpreview
 
             if (matchMode == "_Regex")
             {
-                ReSafeExpander.Visibility = Visibility.Collapsed;
+                // Cache user state before forcing collapsing the expander
+                _isExpanderExpanded = ReSafeExpander.IsExpanded;
+                _ignoreExpanderEvent = true;
+                ReSafeExpander.IsExpanded = false;
+                _ignoreExpanderEvent = false;
                 var toggle = ReSafeExpander.Template.FindName("HeaderToggleButton", ReSafeExpander) as ToggleButton;
                 toggle.IsEnabled = false;
                 ReSafeExpander.Header = "Full Regex Mode";
                 // Add toggle tip for full regx mode 
                 var headerTextBlock = ReSafeExpander.Template.FindName("HeaderText", ReSafeExpander) as TextBlock;
-                headerTextBlock.ToolTip = "Full Regex Mode active. Buttons disabled.";
-                // Hide match cae checkbox from UI 
+                headerTextBlock.ToolTip =
+                    "Full Regex Mode:\n" +
+                    "• Enter a custom regular expression using standard syntax, the same as\n" +
+                    "  that in SafeRegex but without the outer square brackets\n" +
+                    "• Meta characters include: .  $  ^  {  [  (  |  )  *  +  ?  \\\n" +
+                    "• To match these characters literally, escape them with a backslash (e.g., \\., \\$, \\[).\n" +
+                    "• Use grouping (parentheses), character sets ([abc]), and quantifiers ({n}, *, +, ?).\n" +
+                    "• Buttons and safe regex features are disabled in this mode.\n" +
+                    "• For help, see Regex documentation online.";
+                // Hide match case checkbox from UI 
                 MatchCaseCheckBox.Visibility = Visibility.Collapsed;
                 // Shift AnnotationTagsCheckBox to column 1
                 Grid.SetColumn(AnnotationTagsCheckBox, 1);
@@ -87,8 +114,8 @@ namespace WPFpreview
             }
             else
             {
-                ReSafeExpander.Visibility = Visibility.Visible;
                 // Restore normal behavior of expander 
+                ReSafeExpander.IsExpanded = _isExpanderExpanded;
                 ReSafeExpander.ClearValue(Expander.HeaderProperty);
                 var headerTextBlock = ReSafeExpander.Template.FindName("HeaderText", ReSafeExpander) as TextBlock;
                 if (headerTextBlock != null)
@@ -101,10 +128,24 @@ namespace WPFpreview
                 Grid.SetColumn(AnnotationTagsCheckBox, 2);
                 // Re-display match case 
                 MatchCaseCheckBox.Visibility = Visibility.Visible;
-                // Update search logic to use safe regex compiler
+                // Update BtnAndOr to include 'And' Condition if appropriate
+                if (matchMode == "_Contains" || matchMode == "_NotContains")
+                {
+                    // Enable and or functionality 
+                    BtnAndOr.Content = "Or [|] / And [§]";
+                    _isAndEnabled = true;
+                }
+                else
+                {
+                    // restore default content
+                    BtnAndOr.Content = "Or [|]";
+                    _isAndEnabled = false;
+                }
 
             }
         }
+
+        // need to remove tooltip for grp mode prompts
 
         private void SearchButton_Click(object sender, RoutedEventArgs e)
         {
@@ -204,6 +245,7 @@ namespace WPFpreview
         }
 
 
+
         private void ReShortcutButton_Click(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
@@ -276,6 +318,18 @@ namespace WPFpreview
                 : Visibility.Collapsed;
         }
 
+        private void ReSafeExpander_Expanded(object sender, RoutedEventArgs e)
+        {
+            if (_ignoreExpanderEvent) return;
+            _isExpanderExpanded = true;
+        }
+
+        private void ReSafeExpander_Collapsed(object sender, RoutedEventArgs e)
+        {
+            if (_ignoreExpanderEvent) return;
+            _isExpanderExpanded = false;
+        }
+
 
 
         // Enable or disable groups of buttons
@@ -319,6 +373,12 @@ namespace WPFpreview
 
             // Give user hints to select text in expander header 
             ReSafeExpander.Header = "Select (Shift + Arrows) text to group";
+            // Ensure tooltip does not show
+            var headerTextBlock = ReSafeExpander.Template.FindName("HeaderText", ReSafeExpander) as TextBlock;
+            if (headerTextBlock != null)
+            {
+                ToolTipService.SetShowOnDisabled(headerTextBlock, false);
+            }
         }
 
         private void ApplyCancel_BtnUI()
@@ -425,6 +485,13 @@ namespace WPFpreview
             // Restore dynamic trigger behaviour
             ReSafeExpander.ClearValue(Expander.HeaderProperty);
 
+            // Revert tooltip behaviour
+            var headerTextBlock = ReSafeExpander.Template.FindName("HeaderText", ReSafeExpander) as TextBlock;
+            if (headerTextBlock != null)
+            {
+                ToolTipService.SetShowOnDisabled(headerTextBlock, true);
+            }
+
             // Re-enable everything
             SetButtonGroupState(_quantifierButtons, true);
             SetButtonGroupState(_singleCharButtons, true);
@@ -493,8 +560,18 @@ namespace WPFpreview
             // Reset toggle
             AndOrToggle.Content = "Mode: OR";
 
-            // Disable Buttons in form
-            popUpBtnSettings(false);
+            // if AND is not applicable, disable button and set to AND
+            if (_isAndEnabled)
+            {
+                AndOrToggle.IsEnabled = true;
+            }
+            else
+            {
+                AndOrToggle.IsEnabled = false;
+            }
+
+                // Disable Buttons in form
+                popUpBtnSettings(false);
 
             // Set Remove button state to false 
             PopBtnRmvBox.IsEnabled = false;
@@ -686,6 +763,146 @@ namespace WPFpreview
 
 
     }
+
+    /// <summary>
+    /// ///////////////////////SafeRegex Btns ToolTip Helper//////////////////////////////
+    /// </summary>
+    /// 
+    public class RegexTooltipHelper
+    {
+        // Simple struct-like object without properties (easier to port to Python)
+        public class TooltipData
+        {
+            public string Overview;
+            public string Examples;
+        }
+
+        // Central dictionary of regex tooltips
+        private static readonly Dictionary<string, TooltipData> Tooltips =
+            new Dictionary<string, TooltipData>
+            {
+            { "BtnLetter", new TooltipData {
+                Overview = "Matches any single uppercase or lowercase letter.",
+                Examples = "[a-z] → lowercase; [A-Z] → uppercase; [a-zA-Z] → any letter"
+            }},
+            { "BtnNum", new TooltipData {
+                Overview = "Matches a single digit between 0 and 9.",
+                Examples = "[\\d] → same as [0-9]"
+            }},
+            { "BtnChar", new TooltipData {
+                Overview = "Matches any single character except a line break.",
+                Examples = "[.] → matches a, Z, %, etc. (not newline)"
+            }},
+            { "BtnWhitespace", new TooltipData {
+                Overview = "Matches any kind of whitespace character.",
+                Examples = "[\\s] → spaces, tabs, line breaks"
+            }},
+            { "BtnZeroOrMore", new TooltipData {
+                Overview = "Matches zero or more of the preceding element.",
+                Examples = "a[*] → \"\", \"a\", \"aa\", \"aaa\""
+            }},
+            { "BtnOneOrMore", new TooltipData {
+                Overview = "Matches one or more of the preceding element.",
+                Examples = "a[+] → \"a\", \"aa\", \"aaa\""
+            }},
+            { "BtnExactlyN", new TooltipData {
+                Overview = "Matches exactly N repetitions of the preceding element.",
+                Examples = "a[{3}] → \"aaa\""
+            }},
+            { "BtnRangeN", new TooltipData {
+                Overview = "Matches between N and M repetitions.",
+                Examples = "a[{2,4}] → \"aa\", \"aaa\", \"aaaa\"; a[{2,}] → 2+"
+            }},
+            { "BtnOptional", new TooltipData {
+                Overview = "Makes the preceding element optional.",
+                Examples = "colou[?]r → \"color\" or \"colour\""
+            }},
+            { "BtnSet", new TooltipData {
+                Overview = "Matches any one character from the set or range.",
+                Examples = "[abc] → a, b, or c; [A-Z] → uppercase"
+            }},
+            { "BtnAndOr", new TooltipData {
+                Overview = "Acts as a logical OR between two expressions.",
+                Examples = "cat[|]dog → matches \"cat\" or \"dog\""
+            }},
+            { "BtnGroup", new TooltipData {
+                Overview = "Groups part of the pattern as a single unit.",
+                Examples = "(abc)[+] → \"abc\", \"abcabc\", ..."
+            }}
+            };
+
+        // Assign tooltips to all registered buttons
+        public static void ApplyAll(Window window)
+        {
+            foreach (var kvp in Tooltips)
+            {
+                var btn = window.FindName(kvp.Key) as Button;
+                if (btn != null)
+                {
+                    btn.ToolTip = BuildTooltip(kvp.Value);
+                }
+            }
+        }
+
+        // Build a tooltip stackpanel for Overview + Examples
+        private static ToolTip BuildTooltip(TooltipData data)
+        {
+            var stack = new StackPanel { MaxWidth = 300 };
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Overview:",
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 2)
+            });
+            stack.Children.Add(MakeFormattedText(data.Overview, true));
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Examples:",
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 8, 0, 2)
+            });
+            stack.Children.Add(MakeFormattedText(data.Examples, true));
+
+            return new ToolTip { Content = stack };
+        }
+
+        // Bold everything in square brackets
+        private static TextBlock MakeFormattedText(string input, bool wrap)
+        {
+            var tb = new TextBlock { TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap };
+            int start = 0;
+
+            while (start < input.Length)
+            {
+                int open = input.IndexOf('[', start);
+                if (open == -1)
+                {
+                    tb.Inlines.Add(input.Substring(start));
+                    break;
+                }
+
+                if (open > start)
+                    tb.Inlines.Add(input.Substring(start, open - start));
+
+                int close = input.IndexOf(']', open);
+                if (close == -1)
+                {
+                    tb.Inlines.Add(input.Substring(open));
+                    break;
+                }
+
+                string inside = input.Substring(open, close - open + 1);
+                tb.Inlines.Add(new Run(inside) { FontWeight = FontWeights.Bold });
+
+                start = close + 1;
+            }
+
+            return tb;
+        }
+    }
+
 
     /// <summary>
     /// ///////////////////////SafeRE Compiler//////////////////////////////
@@ -938,6 +1155,7 @@ namespace WPFpreview
     }
 }
 
+// Push-Xaml -Files SearchText.xaml, SearchText.xaml.cs
 
 
 
@@ -959,10 +1177,12 @@ namespace WPFpreview
 // 6. All valid segments have outer square brackets stripped and are inserted into final regex as-is
 // 7. All text outside of square brackets is escaped as literal
 
-// FOr and/or button must disable expander, combo box etc to make it clear they can still use normal buttons. 
+
 // Allow user to escape square brackets with \[ and \] if want literal
 
 /////OPTIONAL/////
+// Could right click sets to get common list of them, ie uppercase, lowercase, digit, not set [^abc] , etc
+// could add not option to group mode 
 // Should have a saftey handler for certain invalid inputs
 // Could go ham and have a VS style theme where enclosed brackets at each level are assigned a color to help user see nesting
 //   Further could colour any metachars so users can easily see what will be interpreted as metacharacters

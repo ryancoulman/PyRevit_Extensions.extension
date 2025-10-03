@@ -84,6 +84,7 @@
 											   Text="{TemplateBinding Header}"
 											   VerticalAlignment="Center"
 											   Opacity="0.5"
+                                               ToolTipService.ShowOnDisabled="True"
 											   ToolTipService.ShowDuration="60000">
                                         <TextBlock.ToolTip>
                                             <StackPanel x:Name="HeaderToolTip" Margin="5" MaxWidth="300">
@@ -230,7 +231,7 @@
             </Grid>
 
             <!-- Regex Shortcut Buttons -->
-            <Expander x:Name="ReSafeExpander" IsExpanded="True" Margin="{StaticResource StandardMargin}" Style="{StaticResource MinimalExpanderStyle}">
+            <Expander x:Name="ReSafeExpander" IsExpanded="True" Expanded="ReSafeExpander_Expanded" Collapsed="ReSafeExpander_Collapsed" Margin="{StaticResource StandardMargin}" Style="{StaticResource MinimalExpanderStyle}">
 
                 <UniformGrid Columns="2" HorizontalAlignment="Stretch">
                     <Button x:Name="BtnLetter" Content="Any Letter [a-zA-Z]" Tag="[[a-zA-Z]]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Matches any upper or lower case letter" Click="ReShortcutButton_Click"/>
@@ -312,10 +313,4 @@
 
 <!-- Explain how user can use groups () -->
 <!-- Standardise all Button tooltips to have overview and examples in headers with fix window and all code in bold -->
-<!-- And opt disabled if user doesnt selct contains in combobox. curretly combobox still accessble while in pop up so user could chnge to AND messig it up, or they could even write it at any time themselves  -->
-<!-- Safe Rgeex strategy explained in GPT chat -->
-<!-- Can add a not option to the and / or button-->
-<!-- Full regex mode should update expander header text and disable expansion -->
-    
-<!-- Optional: When user scrolls wth Mbutton over Exactly n then it filters through values -->
-<!-- Optional: Can add some of those right click menu functiolity to some buttons. ie for sets righ clikck and you get some dfault ([a-z], [A-Z], [symbols] etc. -->
+ 
