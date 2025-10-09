@@ -9,9 +9,10 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
+using WPFpreview;
+using static WPFpreview.RegexTooltipHelper;
 
 
-// Metachars = . $ ^ { [ ( | ) * + ? \
 
 namespace WPFpreview
 {
@@ -34,11 +35,20 @@ namespace WPFpreview
 
     public partial class SearchText : Window
     {
+        // Grouped button lists for easier state management
         private List<Button> _quantifierButtons;
         private List<Button> _singleCharButtons;
+        // Track expander state to restore when switching modes
         private bool _isExpanderExpanded;
         private bool _ignoreExpanderEvent = false;
+        // Track if 'And' is applicable for current match mode
         private bool _isAndEnabled = true; // dummy init to avoid null refs
+        // Track last activated text box -> so regex buttons can input into any pop ups
+        private TextBox _activeTextBox = null;
+        // Group mode state
+        private bool _GroupMode = false;
+        // Track if user has text selected for grouping
+        private bool _HasSelection = false;
 
         public SearchText()
         {
@@ -51,7 +61,6 @@ namespace WPFpreview
             MatchComboBox.ItemsSource = MatchOptionKeys.MatchOptions.Values.ToList();
             MatchComboBox.SelectedItem = MatchOptionKeys.MatchOptions["_Contains"]; // Set default selection
 
-
             // Group ReShortctut buttons for easier enabling/disabling
             _singleCharButtons = new List<Button>
             {
@@ -62,28 +71,68 @@ namespace WPFpreview
                 BtnZeroOrMore, BtnOneOrMore, BtnExactlyN, BtnRangeN, BtnOptional
             };
 
+            // Set up tooltips for regex buttons
             RegexTooltipHelper.ApplyAll(this);
 
         }
 
-        // Track last activated text box -> so regex buttons can input into any pop ups
-        private TextBox _activeTextBox = null;
-
-
-
-        private void MatchComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        public string getMatchMode()
         {
-            if (MatchComboBox.SelectedItem == null)
-            {
-                return; // Ignore deselection event
-            }
-
             // Get selected combo box value
             string comboxText = MatchComboBox.SelectedItem != null
                 ? MatchComboBox.SelectedItem.ToString()
                 : "";
             // Reverse lookup to get the key from the value
             string matchMode = MatchOptionKeys.MatchOptions.FirstOrDefault(pair => pair.Value == comboxText).Key;
+            return matchMode;
+        }
+
+        public void setBtnAndOrContext(string matchMode)
+        {
+            // Clear old tooltip before making any changes 
+            BtnAndOr.ToolTip = null;
+            if (matchMode == "_Contains" || matchMode == "_NotContains")
+            {
+                // Enable and or functionality 
+                var textBlock = new TextBlock();
+                textBlock.Inlines.Add("Or ");
+                textBlock.Inlines.Add(new Run("[|]") { Style = (Style)FindResource("BracketTextStyle") });
+                textBlock.Inlines.Add(" / And ");
+                textBlock.Inlines.Add(new Run("[§]") { Style = (Style)FindResource("BracketTextStyle") });
+
+                // Update tooltip to include AND info
+                RegexTooltipHelper.ApplyToButton(BtnAndOr, RegexTooltipHelper.Tooltips["BtnAndOr__AndOr__"]);
+
+                BtnAndOr.Content = textBlock;
+                _isAndEnabled = true;
+            }
+            else
+            {
+                // restore default content
+                BtnAndOr.ClearValue(Button.ContentProperty);
+                var textBlock = new TextBlock();
+                textBlock.Inlines.Add("Or ");
+                textBlock.Inlines.Add(new Run("[|]") { Style = (Style)FindResource("BracketTextStyle") });
+                BtnAndOr.Content = textBlock;
+
+                // Remove AND info from tooltip
+                RegexTooltipHelper.ApplyToButton(BtnAndOr, RegexTooltipHelper.Tooltips["BtnAndOr"]);
+
+                _isAndEnabled = false;
+            }
+        }
+
+        // Handle changing match mode
+        private void MatchComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Ignore deselection events
+            if (MatchComboBox.SelectedItem == null)
+            {
+                return; 
+            }
+
+            // Get selected combo box value
+            string matchMode = getMatchMode();
 
             if (matchMode == "_Regex")
             {
@@ -129,41 +178,27 @@ namespace WPFpreview
                 // Re-display match case 
                 MatchCaseCheckBox.Visibility = Visibility.Visible;
                 // Update BtnAndOr to include 'And' Condition if appropriate
-                if (matchMode == "_Contains" || matchMode == "_NotContains")
-                {
-                    // Enable and or functionality 
-                    BtnAndOr.Content = "Or [|] / And [§]";
-                    _isAndEnabled = true;
-                }
-                else
-                {
-                    // restore default content
-                    BtnAndOr.Content = "Or [|]";
-                    _isAndEnabled = false;
-                }
-
+                setBtnAndOrContext(matchMode);
             }
         }
 
-        // need to remove tooltip for grp mode prompts
-
+        // Handle Search button click
         private void SearchButton_Click(object sender, RoutedEventArgs e)
         {
             // Get entered text
             string enteredText = InputTextBox.Text;
 
             // Get selected combo box value
-            string comboxText = MatchComboBox.SelectedItem != null
-                ? MatchComboBox.SelectedItem.ToString()
-                : "";
-            // Reverse lookup to get the key from the value
-            string matchMode = MatchOptionKeys.MatchOptions.FirstOrDefault(pair => pair.Value == comboxText).Key;
+            string matchMode = getMatchMode();
 
             // Get Match Case checkbox states
             bool isMatchCase = MatchCaseCheckBox.IsChecked == true;
 
+            // Check if plain text mode (expander closed and not full regex)
+            bool isPlainTextMode = matchMode != "_Regex" && !ReSafeExpander.IsExpanded;
+
             // Compile the safe regex from input text, Match mode, and Match Case
-            string regexText = SafeRegex.SafeRe_Compiler(enteredText, matchMode, isMatchCase);
+            string regexText = SafeRegex.SafeRe_Compiler(enteredText, matchMode, isMatchCase, isPlainTextMode);
 
             // Get Include Annotation tags checkbox state
             bool isAnnotationTags = AnnotationTagsCheckBox.IsChecked == true;
@@ -174,13 +209,13 @@ namespace WPFpreview
                 $"Compiled Regex: {regexText}\n" +
                 $"Match: {matchMode}\n" +
                 $"Match Case: {isMatchCase}\n" +
+                $"Is Plain Text Mode: {isPlainTextMode}\n" +
                 $"Include Annotation tags: {isAnnotationTags}",
                 "Search Info"
             );
         }
 
-        private bool _GroupMode = false;
-        private bool _HasSelection = false;
+
 
         // Mini helper function for inserting a string into a TextBox at caret or selection
         private void InsertTagAtCaret(TextBox targetTextBox, string tag, string placeholder = null)
@@ -295,22 +330,23 @@ namespace WPFpreview
             }
         }
 
+
+        /// <summary>
+        /// /////////////////////// Input TextBox Hint Handling //////////////////////////////
+        /// </summary>
         private void InputTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             UpdateHintVisibility();
         }
-
         private void InputTextBox_GotFocus(object sender, RoutedEventArgs e)
         {
             _activeTextBox = InputTextBox;
             UpdateHintVisibility();
         }
-
         private void InputTextBox_LostFocus(object sender, RoutedEventArgs e)
         {
             UpdateHintVisibility();
         }
-
         private void UpdateHintVisibility()
         {
             InputHint.Visibility = string.IsNullOrEmpty(InputTextBox.Text) && !InputTextBox.IsFocused
@@ -318,12 +354,14 @@ namespace WPFpreview
                 : Visibility.Collapsed;
         }
 
+        /// <summary>
+        /// /////////////////////// Handle expander state //////////////////////////////
+        /// </summary>
         private void ReSafeExpander_Expanded(object sender, RoutedEventArgs e)
         {
             if (_ignoreExpanderEvent) return;
             _isExpanderExpanded = true;
         }
-
         private void ReSafeExpander_Collapsed(object sender, RoutedEventArgs e)
         {
             if (_ignoreExpanderEvent) return;
@@ -331,6 +369,12 @@ namespace WPFpreview
         }
 
 
+        /// <summary>
+        /// ////////////////////// Handle Group Mode //////////////////////////////
+        /// </summary>
+        /// 
+        private object _defaultGroupContent;
+        private object _cachedInputBoxText;
 
         // Enable or disable groups of buttons
         private void SetButtonGroupState(IEnumerable<Button> buttons, bool enabled)
@@ -388,11 +432,14 @@ namespace WPFpreview
             BtnGroup.Foreground = Brushes.Green;
             BtnGroup.Content = "Apply Group";
             BtnGroup.IsEnabled = false;
+            BtnGroup.ToolTip = null; // Disable tooltip in group mode
 
             BtnAndOr.Background = Brushes.Transparent;
             BtnAndOr.BorderBrush = Brushes.Red;
             BtnAndOr.Foreground = Brushes.Red;
             BtnAndOr.Content = "Cancel (Esc)";
+            // NOTE: For some reason adding any content to tooltip here intermitently crashes the program when the user hits 'Cancel' 
+            BtnAndOr.ToolTip = null;
         }
 
         private void InputTextBox_SelectionChanged(object sender, RoutedEventArgs e)
@@ -438,16 +485,11 @@ namespace WPFpreview
         }
 
 
-        private object _defaultGroupContent;
-        private object _defaultAndOrContent;
-        private object _cachedInputBoxText;
-
         // cache default button content on load so reset back to orginal after group mode 
         private void Cache_States()
         {
             _defaultGroupContent = BtnGroup.Content;
-            _defaultAndOrContent = BtnAndOr.Content;
-            _cachedInputBoxText = InputTextBox.Text;
+            _cachedInputBoxText = InputTextBox.Text ?? "";
         }
 
 
@@ -463,13 +505,15 @@ namespace WPFpreview
             BtnGroup.ClearValue(Button.BorderBrushProperty);
             BtnGroup.ClearValue(Button.IsEnabledProperty);
             BtnGroup.Content = _defaultGroupContent;
+            RegexTooltipHelper.ApplyToButton(BtnGroup, RegexTooltipHelper.Tooltips["BtnGroup"]);
+
 
             BtnAndOr.ClearValue(Button.BackgroundProperty);
             BtnAndOr.ClearValue(Button.ForegroundProperty);
             BtnAndOr.ClearValue(Button.BorderBrushProperty);
             BtnAndOr.ClearValue(Button.ContentProperty);
             BtnAndOr.ClearValue(Button.IsEnabledProperty);
-            BtnAndOr.Content = _defaultAndOrContent;
+            setBtnAndOrContext(getMatchMode());
 
 
             InputTextBox.ClearValue(TextBox.BorderBrushProperty);
@@ -501,11 +545,16 @@ namespace WPFpreview
             SearchButton.IsEnabled = true;
         }
 
+        /// <summary>
+        /// ////////////////////// Handle And/Or Popup //////////////////////////////
+        /// </summary>
 
+        public class AndOrPopupManager
+        {
+            private Popup _popup; // dummy class to avoid null refs
+        }
 
-        // Below is the code for handling the OR popup functionality
         private TextBox _activePopupTextBox;
-
 
         /// <summary>
         /// Called when the OR popup is opened. Handles switching AND/OR,
@@ -767,7 +816,6 @@ namespace WPFpreview
     /// <summary>
     /// ///////////////////////SafeRegex Btns ToolTip Helper//////////////////////////////
     /// </summary>
-    /// 
     public class RegexTooltipHelper
     {
         // Simple struct-like object without properties (easier to port to Python)
@@ -778,12 +826,11 @@ namespace WPFpreview
         }
 
         // Central dictionary of regex tooltips
-        private static readonly Dictionary<string, TooltipData> Tooltips =
-            new Dictionary<string, TooltipData>
-            {
+        public static readonly Dictionary<string, TooltipData> Tooltips = new Dictionary<string, TooltipData>
+        {
             { "BtnLetter", new TooltipData {
                 Overview = "Matches any single uppercase or lowercase letter.",
-                Examples = "[a-z] → lowercase; [A-Z] → uppercase; [a-zA-Z] → any letter"
+                Examples = "[a-z] → lowercase\n[A-Z] → uppercase\n[a-zA-Z] → any letter"
             }},
             { "BtnNum", new TooltipData {
                 Overview = "Matches a single digit between 0 and 9.",
@@ -811,7 +858,7 @@ namespace WPFpreview
             }},
             { "BtnRangeN", new TooltipData {
                 Overview = "Matches between N and M repetitions.",
-                Examples = "a[{2,4}] → \"aa\", \"aaa\", \"aaaa\"; a[{2,}] → 2+"
+                Examples = "a[{2,4}] → \"aa\", \"aaa\", \"aaaa\"\na[{2,}] → 2+"
             }},
             { "BtnOptional", new TooltipData {
                 Overview = "Makes the preceding element optional.",
@@ -819,23 +866,38 @@ namespace WPFpreview
             }},
             { "BtnSet", new TooltipData {
                 Overview = "Matches any one character from the set or range.",
-                Examples = "[abc] → a, b, or c; [A-Z] → uppercase"
+                Examples = "[abc] → a, b, or c\n[A-Z] → uppercase"
             }},
+            // Default Tooltip for BtnAndOr does not include AND info; overridden in code when AND applicable
             { "BtnAndOr", new TooltipData {
                 Overview = "Acts as a logical OR between two expressions.",
-                Examples = "cat[|]dog → matches \"cat\" or \"dog\""
+                Examples = "cat[|]dog → matches \"cat\" or \"dog\"" + "\n" +
+                           "analy[(s[|]z)]e → matches analyse or analyze"
             }},
             { "BtnGroup", new TooltipData {
                 Overview = "Groups part of the pattern as a single unit.",
                 Examples = "(abc)[+] → \"abc\", \"abcabc\", ..."
-            }}
-            };
+            }},
+
+            /// Custom tooltips for buttons with dual functionality /// 
+            { "BtnAndOr__AndOr__", new TooltipData {
+                Overview = "Acts as a logical AND / OR between two expressions.",
+                Examples = "cat[|]dog → matches \"cat\" or \"dog\"" + "\n" +
+                           "analy[(s[|]z)]e → matches analyse or analyze" + "\n" +
+                           "cat[§]dog → matches strings containing both \"cat\" and \"dog\"" + "\n\n" +
+                           "Note Exception: The § symbol is not a standard regular expression meta character. " +
+                           "In this tool, it is used as a custom separator to represent the logical AND operation for simplicity."
+            }},
+        };
 
         // Assign tooltips to all registered buttons
         public static void ApplyAll(Window window)
         {
             foreach (var kvp in Tooltips)
             {
+                // Skip keys that are for extra data
+                if (kvp.Key.Contains("__")) continue;
+
                 var btn = window.FindName(kvp.Key) as Button;
                 if (btn != null)
                 {
@@ -843,6 +905,19 @@ namespace WPFpreview
                 }
             }
         }
+
+        // Assign method for changing tooltip data at runtime 
+        public static void ApplyToButton(Button btn, TooltipData newTooltipData)
+        {
+            if (btn != null)
+            {
+                // Clear old tooltip first
+                btn.ToolTip = null;
+                // Assign new tooltip
+                btn.ToolTip = BuildTooltip(newTooltipData);
+            }
+        }
+
 
         // Build a tooltip stackpanel for Overview + Examples
         private static ToolTip BuildTooltip(TooltipData data)
@@ -907,16 +982,20 @@ namespace WPFpreview
     /// <summary>
     /// ///////////////////////SafeRE Compiler//////////////////////////////
     /// </summary>
-
     public static class SafeRegex
     {
 
-        public static string SafeRe_Compiler(string input, string matchMode, bool isMatchcase)
+        public static string SafeRe_Compiler(string input, string matchMode, bool isMatchcase, bool isPlainTextMode = false)
         {
             if (matchMode == "_Regex")
             {
                 // Full regex mode, return input as-is 
                 return input;
+            }
+            if (isPlainTextMode)
+            {
+                // Plain text mode, escape entire input and then apply match style
+                return ApplyMatchStyle(Regex.Escape(input), matchMode, isMatchcase);
             }
             // Process input text first
             string output = CompileSafeRegex(input);
@@ -929,10 +1008,15 @@ namespace WPFpreview
 
         }
 
-
-        private static string CompileSafeRegex(string input)
+        private static string CompileSafeRegex(string input, bool isFirstCall=true)
         {
             string output = input;
+
+            // If no brackets at all, escape entire input as ProcessSegment will not be called
+            if (FindBracketSegments(output).Count == 0  && isFirstCall)
+            {
+                return Regex.Escape(output);
+            }
 
             while (true)
             {
@@ -944,7 +1028,7 @@ namespace WPFpreview
                     var sb = new StringBuilder();
                     for (int i = 0; i < segments.Count; i++)
                     {
-                        sb.AppendLine($"Segment {i + 1}: {segments[i].Content} (Start: {segments[i].Start}, End: {segments[i].End})");
+                        sb.AppendLine($"Segment {i + 1}: {segments[i].Content} (Start: {segments[i].Start}, End: {segments[i].End}, NestingLvl: {segments[i].NestingLevel})");
                     }
                     MessageBox.Show(sb.ToString(), "Segments Found");
                 }
@@ -952,6 +1036,8 @@ namespace WPFpreview
 
                 if (segments.Count == 0) break;
 
+                // Right now nothing outside the segments is processed. so any metachars can easily get through.
+                // Need to be careful tho as SafeRe Chars will get passed back into main string so dont want to escape these. 
                 foreach (var seg in segments)
                 {
                     string processed = ProcessSegment(seg.Content);
@@ -962,6 +1048,13 @@ namespace WPFpreview
                 }
             }
             
+            return output;
+        }
+
+        private static string CompileSafeRegexNEW(string input, bool isFirstCall = true)
+        {
+            string output = input;
+
             return output;
         }
 
@@ -1005,7 +1098,7 @@ namespace WPFpreview
                 }
                 else
                 {
-                    string cleaned = CompileSafeRegex(inner);
+                    string cleaned = CompileSafeRegex(inner, false);
                     return "(" + cleaned + ")";
                 }
             }
@@ -1013,13 +1106,15 @@ namespace WPFpreview
             // Rule: Single-token wrappers e.g. [\d], [.], [^]
             if (IsAllowedToken(content))
             {
+                MessageBox.Show($"Content '{content}' is a valid token, using as-is.");
                 return content;
             }
 
             MessageBox.Show($"Content '{content}' is invalid, escaping entire segment.");
 
-            // Default: escape whole block
-            return Regex.Escape(content);
+            // Only segemnts of form [...] get to this point (where content = ...), assume they wanted literal match 
+            // ie DB[123] -> DB\[123\]. Note invali single token wrappers like [\y] or mergers [.+] (-> \[\.\+\]) get escaped too
+            return "\\[" + Regex.Escape(content) + "\\]";
         }
 
         private static bool IsAllowedToken(string content)
@@ -1038,14 +1133,17 @@ namespace WPFpreview
             public int Start { get; }
             public int End { get; }
             public string Content { get; }
+            public int NestingLevel { get; } // Add this property
 
-            public BracketSegment(int start, int end, string content)
+            public BracketSegment(int start, int end, string content, int nestingLevel)
             {
                 Start = start;
                 End = end;
                 Content = content;
+                NestingLevel = nestingLevel;
             }
         }
+
 
         private static List<BracketSegment> FindBracketSegments(string input)
         {
@@ -1055,6 +1153,13 @@ namespace WPFpreview
             // Handle double square brackets [[...]] as would naturally produce two segments when we only want [abc]
             for (int i = 0; i < input.Length; i++)
             {
+                // Ignore escaped brakcets \[
+                if (i + 1 < input.Length && input[i] == '\\' && (input[i + 1] == '[' || input[i + 1] == ']'))
+                {
+                    i++;  // skip the next iteration where input[i] = [
+                    continue;
+                }
+
                 // Detect double [[
                 if (i + 1 < input.Length && input[i] == '[' && input[i + 1] == '[')
                 {
@@ -1062,7 +1167,6 @@ namespace WPFpreview
                     i++;                // skip the second [
                     continue;
                 }
-
                 // Detect double ]]
                 if (i + 1 < input.Length && input[i] == ']' && input[i + 1] == ']')
                 {
@@ -1071,11 +1175,14 @@ namespace WPFpreview
                         int start = stack.Pop();
                         int end = i + 1; // include both ]]
                         string content = input.Substring(start + 2, end - start - 3); // remove outer [[ ]]
-                        segments.Add(new BracketSegment(start, end, "[" + content + "]"));
+                        int nestingLevel = stack.Count; // The current stack count is the nesting level
+                        segments.Add(new BracketSegment(start, end, "[" + content + "]", nestingLevel));
                     }
                     i++; // skip the second ]
                     continue;
                 }
+
+                // Add in similar handling to above for [( and )] as well as [{ and }] so that [(djjdj]ndnd)] does not get treated as (djjdj
 
                 // Normal single [] handling
                 if (input[i] == '[')
@@ -1087,7 +1194,8 @@ namespace WPFpreview
                     int start = stack.Pop();
                     int end = i;
                     string content = input.Substring(start + 1, end - start - 1);
-                    segments.Add(new BracketSegment(start, end, content));
+                    int nestingLevel = stack.Count; // The current stack count is the nesting level
+                    segments.Add(new BracketSegment(start, end, content, nestingLevel));
                 }
             }
 
@@ -1178,7 +1286,10 @@ namespace WPFpreview
 // 7. All text outside of square brackets is escaped as literal
 
 
-// Allow user to escape square brackets with \[ and \] if want literal
+// The tooltip formater does not handle nested brackets. just inherit findbracketsegs and but segs in bold
+// Seperate out code into seperate classes for PopUp etc. inherit from main class 
+// Escaping square brkts problem if no other saferegex tokens as whole output will then get ecaped agaain. ie \[nns\] -> \\\[nns\\]
+
 
 /////OPTIONAL/////
 // Could right click sets to get common list of them, ie uppercase, lowercase, digit, not set [^abc] , etc
@@ -1186,3 +1297,12 @@ namespace WPFpreview
 // Should have a saftey handler for certain invalid inputs
 // Could go ham and have a VS style theme where enclosed brackets at each level are assigned a color to help user see nesting
 //   Further could colour any metachars so users can easily see what will be interpreted as metacharacters
+
+
+// SafeRegex breaks 
+// [(uuiih]mmo)][*] will treat [(uuih] as segment and [*] as other leading to \(uuiihmmo)]*. Only accept end [(, [{ with )], }] IN FindBracketSegments.
+// ie store as seperate type, [( = a single token, just like [ 
+// if count(segents) > 0 then anything outside (ie xx\dxxx[\d]xxx) will not get processed . ie the \d will NOT get escaped 
+// Right now cannot merge meta chars inside one set of brackets. and mergers get penalised unfairly. easy partial fix for ingle char 
+// is if contains isvalidregextokens in process segments but wont handle \d{3} say. Could get out of hand if NEsted? 
+

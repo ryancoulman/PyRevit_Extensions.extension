@@ -38,7 +38,13 @@
             <Setter Property="Margin" Value="0,0,5,0"/>
             <Setter Property="FontSize" Value="{StaticResource GlobalFontSize}"/>
         </Style>
-                
+
+        <!-- Style for text in square brackets -->
+        <Style x:Key="BracketTextStyle" TargetType="Run">
+            <Setter Property="FontFamily" Value="Bahnschrift SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
 
         <Style TargetType="ComboBox">
             <Setter Property="FontSize" Value="{StaticResource GlobalFontSize}"/>
@@ -134,7 +140,8 @@
                                                 <!-- Syntax Inside Brackets -->
                                                 <TextBlock Text="Syntax Inside Brackets:" FontWeight="Bold" Margin="0,5,0,2"/>
                                                 <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
-													Inside brackets, the syntax follows standard regex rules. Only the basic commands are provided as buttons for simplicity, but you can use any regex patterns inside brackets.
+													Inside brackets, the syntax follows standard regex rules. Only the basic commands are provided as buttons for simplicity, but you can use any regex patterns inside brackets.  
+                                                    Note: If you wish to use square brackets literly please escape them with a backslash for saftey, e.g. <Run FontWeight="Bold">[\[]</Run> or <Run FontWeight="Bold">[\]]</Run>.
                                                 </TextBlock>
                                                 <!-- Groups -->
                                                 <TextBlock Text="Groups:" FontWeight="Bold" Margin="0,5,0,2"/>
@@ -206,7 +213,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Label x:Name="MatchLabel" Content="Match"/>
+                <Label x:Name="MatchLabel" Content="Match Type"/>
                 <ComboBox x:Name="MatchComboBox" Grid.Column="2" Width="150" SelectionChanged="MatchComboBox_SelectionChanged"/>
             </Grid>
 
@@ -234,19 +241,96 @@
             <Expander x:Name="ReSafeExpander" IsExpanded="True" Expanded="ReSafeExpander_Expanded" Collapsed="ReSafeExpander_Collapsed" Margin="{StaticResource StandardMargin}" Style="{StaticResource MinimalExpanderStyle}">
 
                 <UniformGrid Columns="2" HorizontalAlignment="Stretch">
-                    <Button x:Name="BtnLetter" Content="Any Letter [a-zA-Z]" Tag="[[a-zA-Z]]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Matches any upper or lower case letter" Click="ReShortcutButton_Click"/>
-                    <Button x:Name="BtnNum" Content="Any Num [\d]" Tag="[\d]" Margin="{StaticResource RightButtonMargin}" ToolTip="Matches any digit (0–9)" Click="ReShortcutButton_Click"/>
-                    <Button x:Name="BtnChar" Content="Any Char [.]" Tag="[.]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Matches any single character except newline" Click="ReShortcutButton_Click"/>
-                    <Button x:Name="BtnWhitespace" Content="Whitespace [\s]" Tag="[\s]" Margin="{StaticResource RightButtonMargin}" ToolTip="Matches spaces, tabs, and other whitespace" Click="ReShortcutButton_Click"/>
-                    <Button x:Name="BtnZeroOrMore" Content="Zero or More [*]" Tag="[*]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Zero or more of the preceding character/group" Click="ReShortcutButton_Click"/>
-                    <Button x:Name="BtnOneOrMore" Content="One or More [+]" Tag="[+]" Margin="{StaticResource RightButtonMargin}" ToolTip="One or more of the preceding character/group" Click="ReShortcutButton_Click"/>
-                    <Button x:Name="BtnExactlyN" Content="Exactly N [{N}]" Tag="{}[{N}]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Exactly N of the preceding character/group. Replace N with a number." Click="ReShortcutButton_Click"/>
-                    <Button x:Name="BtnRangeN" Content="Range N-M [{N,M}]" Tag="{}[{N,M}]" Margin="{StaticResource RightButtonMargin}" ToolTip="N to M times. Leave M blank {N,} for at least N times" Click="ReShortcutButton_Click"/>
-                    <Button x:Name="BtnOptional" Content="Optional [?]" Tag="[?]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Makes the preceding element optional. Example: colou?r matches both 'color' and 'colour' as the 'u' is optional." Click="ReShortcutButton_Click"/>
-                    <Button x:Name="BtnSet" Content="Set [[abc]]" Tag="[[abc]]" Margin="{StaticResource RightButtonMargin}" ToolTip="Define a character set or range. Example: [abc] matches a, b, or c; [A-Z] matches any uppercase letter. Replace abc with a set." Click="ReShortcutButton_Click"/>
-
+                    <Button x:Name="BtnLetter" Tag="[[a-zA-Z]]" Margin="{StaticResource LeftButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Any Letter
+                                <Run Style="{StaticResource BracketTextStyle}"> [a-zA-Z]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="BtnNum" Tag="[\d]" Margin="{StaticResource RightButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Any Num
+                                <Run Style="{StaticResource BracketTextStyle}"> [\d]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="BtnChar" Tag="[.]" Margin="{StaticResource LeftButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Any Char
+                                <Run Style="{StaticResource BracketTextStyle}"> [.]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="BtnWhitespace" Tag="[\s]" Margin="{StaticResource RightButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Whitespace
+                                <Run Style="{StaticResource BracketTextStyle}"> [\s]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="BtnZeroOrMore" Tag="[*]" Margin="{StaticResource LeftButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Zero or More
+                                <Run Style="{StaticResource BracketTextStyle}"> [*]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="BtnOneOrMore" Tag="[+]" Margin="{StaticResource RightButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                One or More
+                                <Run Style="{StaticResource BracketTextStyle}"> [+]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="BtnExactlyN" Tag="{}[{N}]" Margin="{StaticResource LeftButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Exactly N
+                                <Run Style="{StaticResource BracketTextStyle}"> [{N}]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="BtnRangeN" Tag="{}[{N,M}]" Margin="{StaticResource RightButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Range N-M
+                                <Run Style="{StaticResource BracketTextStyle}"> [{N,M}]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="BtnOptional" Tag="[?]" Margin="{StaticResource LeftButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Optional
+                                <Run Style="{StaticResource BracketTextStyle}"> [?]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="BtnSet" Tag="[[abc]]" Margin="{StaticResource RightButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Set
+                                <Run Style="{StaticResource BracketTextStyle}"> [[abc]]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
+                    
                     <Grid>
-                        <Button x:Name="BtnAndOr" Content="Or [|]" Tag="[|]" Margin="{StaticResource LeftButtonMargin}" ToolTip="Matches either the left or right expression" Click="ReShortcutButton_Click"/>
+                        <Button x:Name="BtnAndOr" Tag="[|]" Margin="{StaticResource LeftButtonMargin}" Click="ReShortcutButton_Click">
+                            <Button.Content>
+                                <TextBlock>
+                                Or
+                                <Run Style="{StaticResource BracketTextStyle}"> [|]</Run>
+                                </TextBlock>
+                            </Button.Content>
+                        </Button>
 
                         <!-- Popup floating next to the OR button -->
                         <Popup x:Name="OrPopup"
@@ -288,7 +372,14 @@
                         </Popup>
                     </Grid>
 
-                    <Button x:Name="BtnGroup" Tag="(...)" Content="Group [(...)}" Margin="{StaticResource RightButtonMargin}" Click="ReShortcutButton_Click"/>
+                    <Button x:Name="BtnGroup" Tag="(...)" Margin="{StaticResource RightButtonMargin}" Click="ReShortcutButton_Click">
+                        <Button.Content>
+                            <TextBlock>
+                                Group
+                                <Run Style="{StaticResource BracketTextStyle}"> [(...)]</Run>
+                            </TextBlock>
+                        </Button.Content>
+                    </Button>
                 </UniformGrid>
             </Expander>
 
