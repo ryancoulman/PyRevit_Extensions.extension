@@ -7,3 +7,5 @@ tooltip:
 
 # TO DO 
 # - Add non modal abiity (when switched ShowDialog() -> Show() then could not get pyrevit script to run)
+# iN NON MODAL FORM SHOULD STILL STAY FOREFRONT 
+# LOOK AT PYREVIT 'SHOW VIEW RANGE' AS THIS HAS DESIRED BBEHAVIOR

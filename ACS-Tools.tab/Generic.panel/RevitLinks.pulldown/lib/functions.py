@@ -1,5 +1,5 @@
 
-from Autodesk.Revit.DB import FilteredElementCollector, BuiltInCategory, ElementId, RevitLinkType
+from Autodesk.Revit.DB import FilteredElementCollector, BuiltInCategory, ElementId, RevitLinkType, Transaction
 from pyrevit import forms
 from System.Collections.Generic import List
 
@@ -78,7 +78,7 @@ def get_link_visibility_status(view, link_types):
     
     return visibility_status
 
-def get_view_template(doc, template_name):
+def get_view_template(doc, template_name, exit_script=False):
     """Get the view template by name."""
     view_templates = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Views).ToElements()
     template = None
@@ -89,9 +89,42 @@ def get_view_template(doc, template_name):
             break
     
     if template is None:
-        forms.alert("View template '{}' not found. Ensure template name exactly matches.".format(template_name), exitscript=True)
+        forms.alert("View template '{}' not found. Please select a template with link annotations off.".format(template_name), exitscript=exit_script)
+        set_view_template(view_templates, template_name, doc)
+        return get_view_template(doc, template_name, exit_script=True)
 
     return template.Id
+
+def set_view_template(views, template_name, doc):
+    view_templates = [v for v in views if v.IsTemplate]
+
+    if not view_templates:
+        forms.alert("No view templates found in this document.", exitscript=True)
+        return None
+
+    # Show selection form
+    selected_name = forms.SelectFromList.show(
+        sorted([v.Name for v in view_templates]),
+        title="Select View Template",
+        button_name="Apply"
+    )
+
+    if not selected_name:
+        return None
+    
+    # Find the chosen template
+    selected_template = next(v for v in view_templates if v.Name == selected_name)
+
+    # Rename within a transaction
+    t = Transaction(doc, "Rename View Template")
+    t.Start()
+    try:
+        selected_template.Name = template_name
+    except Exception as e:
+        forms.alert("Failed to rename template:\n{}".format(e))
+    t.Commit()
+
+    
 
 def get_original_link_visibility(doc, visibility_status, link_type_ids):
     """Restore the visibility of Revit link types based on original status."""

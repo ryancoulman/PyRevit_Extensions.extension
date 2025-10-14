@@ -1,0 +1,8 @@
+title:
+  en_us: |-
+    Param Sync
+tooltip:
+  en_us: |-
+    Sync the value of one parameter to another parameter across multiple family instances.
+    Select a family instance to begin and choose the source and target parameters to sync.
+    Choose whether to sync parameters across all instances of the same family, category or all instances in the project with both parameters.

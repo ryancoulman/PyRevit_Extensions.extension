@@ -1,0 +1,10 @@
+title:
+  en_us: |-
+    Nested Param
+    Sync
+tooltip:
+  en_us: |-
+    Sync parameters between nested family instances and their host family instance.
+    Select a nested family instance to begin.
+    Choose whether to sync the same parameter name or different parameter names.
+    Select the source and target parameters to sync.
