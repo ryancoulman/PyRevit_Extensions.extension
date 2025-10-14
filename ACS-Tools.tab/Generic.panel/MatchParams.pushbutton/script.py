@@ -51,29 +51,58 @@ def get_instances_with_both_params_same_category(doc, family_instance, source_pa
     return matching
 
 
-def get_instances_with_both_params(doc, source_param_name, target_param_name):
-    """Return all FamilyInstances that contain both parameters."""
-    matching = []
-    for inst in FilteredElementCollector(doc).OfClass(FamilyInstance):
+def select_categories(doc):
+    """Show a multiselect list of all categories in the project."""
+    categories = sorted([cat.Name for cat in doc.Settings.Categories if cat.Name and cat.AllowsBoundParameters])
+    selected = forms.SelectFromList.show(
+        categories,
+        title="Select Categories",
+        multiselect=True,
+        button_name="OK"
+    )
+    return selected or []
+
+
+def get_instances_with_both_params_in_categories(doc, category_names, source_param_name, target_param_name):
+    """Return all elements in selected categories that have both parameters."""
+    if not category_names:
+        return []
+
+    matching_instances = []
+
+    # Build a map of selected names -> category objects
+    selected_cats = {
+        c.Name: c for c in doc.Settings.Categories if c.Name in category_names
+    }
+
+    # Loop through all elements and filter by selected categories
+    for inst in FilteredElementCollector(doc).WhereElementIsNotElementType():
+        cat = inst.Category
+        if not cat or cat.Name not in selected_cats:
+            continue
+
         src = inst.LookupParameter(source_param_name)
         tgt = inst.LookupParameter(target_param_name)
         if src and tgt:
-            matching.append(inst)
-    return matching
+            matching_instances.append(inst)
+
+    return matching_instances
 
 
-def get_family_parameters(family_instance):
+def get_family_parameters(family_instance, read_only):
     """Return list of writable parameter names."""
     params = []
     for p in family_instance.Parameters:
-        if not p.IsReadOnly:
+        if read_only and p.IsReadOnly:
+            params.append(p.Definition.Name)
+        else:
             params.append(p.Definition.Name)
     return sorted(set(params))
 
 
-def pick_parameter(family_instance, title="Select Parameter"):
+def pick_parameter(family_instance, read_only, title="Select Parameter"):
     """Prompt user to pick a parameter name from given family instance."""
-    param_names = get_family_parameters(family_instance)
+    param_names = get_family_parameters(family_instance, read_only)
     return forms.SelectFromList.show(param_names, title=title, button_name="Select", multiselect=False)
 
 
@@ -84,8 +113,8 @@ def copy_parameter_value(source_param, target_param):
 
     stype = source_param.StorageType
     try:
-        if stype == StorageType.String:
-            val = source_param.AsString() or ""
+        if stype == StorageType.String or stype == StorageType.ElementId:
+            val = source_param.AsString() or source_param.AsValueString() or ""
             target_param.Set(val)
         elif stype == StorageType.Double:
             target_param.Set(source_param.AsDouble())
@@ -109,8 +138,8 @@ if __name__ == "__main__":
     fam_inst = pick_family(uidoc)
     family = fam_inst.Symbol.Family
 
-    src_param = pick_parameter(fam_inst, "Select Source Parameter to copy from")
-    tgt_param = pick_parameter(fam_inst, "Select Target Parameter to paste to")
+    src_param = pick_parameter(fam_inst, read_only=False, title="Select Source Parameter to copy from")
+    tgt_param = pick_parameter(fam_inst, read_only=True, title="Select Target Parameter to paste to") # Only writable
 
     if not src_param or not tgt_param:
         forms.alert("No parameters selected.", exitscript=True)
@@ -118,7 +147,7 @@ if __name__ == "__main__":
     options = [
         "Only instances of family: {}".format(family.Name),
         "All of same category: {}".format(fam_inst.Category.Name),
-        "All instances with both parameters"
+        "All of selected category...",
     ]
 
     choice = forms.CommandSwitchWindow.show(
@@ -135,7 +164,14 @@ if __name__ == "__main__":
     elif "All of same category" in choice:
         matches = get_instances_with_both_params_same_category(doc, fam_inst, src_param, tgt_param)
     else:
-        matches = get_instances_with_both_params(doc, src_param, tgt_param)
+        # Ask user to pick from available categories
+        selected_categories = select_categories(doc)
+        if not selected_categories:
+            forms.alert("No categories selected. Exiting script.", exitscript=True)
+
+        matches = get_instances_with_both_params_in_categories(
+            doc, selected_categories, src_param, tgt_param
+        )
 
     count = 0
     t = Transaction(doc, "Sync Family Parameters")
