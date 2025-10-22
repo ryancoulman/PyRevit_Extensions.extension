@@ -1,10 +1,8 @@
-# MEP Fabrication Service Extraction for Valves (Connector-Based)
-# This script identifies which MEP fabrication service each valve belongs to
-# Uses connector locations for more accurate proximity detection
+# Optimized MEP Fabrication Service Extraction for Valves
+# Pre-computes all connector positions to avoid nested loops
 
-from pyrevit import revit, forms
+from pyrevit import *
 from Autodesk.Revit.DB import *
-
 
 # Get current document
 uidoc = __revit__.ActiveUIDocument
@@ -12,343 +10,367 @@ doc = uidoc.Document
 
 # Configuration
 Tolerance_mm = 50  # millimeters
-# Convert tolerance to feet (Revit internal units)
-PROXIMITY_TOLERANCE = Tolerance_mm / 304.8  # feet - can be tighter now that we're using connectors
+PROXIMITY_TOLERANCE = Tolerance_mm / 304.8  # Convert to feet
+touching_dist_mm = 5  # millimeters
+TOUCHING_DIST_SQ = (touching_dist_mm / 304.8) ** 2  # Convert to feet
 
 def get_connector_manager(element):
     """Get connector manager from an element"""
     try:
-        # Try MEP elements
         if hasattr(element, 'ConnectorManager'):
             return element.ConnectorManager
-        # Try fabrication elements
-        elif hasattr(element, 'FabricationConnectorManager'):
-            return element.FabricationConnectorManager
-        elif hasattr(element, 'MEPModel'): # For Valves
+        elif hasattr(element, 'MEPModel'):
             return element.MEPModel.ConnectorManager
     except:
         pass
     return None
 
-def get_all_connectors(element):
-    """Get all connectors from an element with their locations"""
-    connectors_info = []
-    connector_mgr = get_connector_manager(element)
-    
-    if connector_mgr is None:
-        return connectors_info
-    
-    for connector in connector_mgr.Connectors:
-        try:
-            # Only physical connectors have Origin property
-            # Check connector type to avoid exceptions Ignore logical connectors etc
-            if connector.ConnectorType == ConnectorType.End or \
-               connector.ConnectorType == ConnectorType.Physical:
-                origin = connector.Origin
-                connectors_info.append({
-                    'connector': connector,
-                    'origin': origin,
-                    'is_connected': connector.IsConnected
-                })
-        except:
-            # Skip connectors without Origin (logical connectors, etc.)
-            continue
-    
-    return connectors_info
-
-def get_connected_elements(valve):
-    """Get elements directly connected to valve via connectors"""
-    connected_elements = []
-    connector_mgr = get_connector_manager(valve)
-    
-    if connector_mgr is None:
-        return connected_elements
-    
-    for connector in connector_mgr.Connectors:
-        if connector.IsConnected:
-            connector_set = connector.AllRefs
-            for ref_connector in connector_set:
-                if ref_connector.Owner.Id != valve.Id:
-                    connected_elements.append({
-                        'element': ref_connector.Owner,
-                        'connector': ref_connector,
-                        'valve_connector': connector
-                    })
-    
-    return connected_elements
-
 def get_service_from_element(element):
     """Extract service name from an MEP fabrication element"""
-    service_name = None
-    
+
+    # Fast attribute lookups first (no Revit API calls)
+    if hasattr(element, 'ServiceName') and element.ServiceName is not None:
+        return element.ServiceName 
+
     try:
-        # For Fabrication Parts
-        if hasattr(element, 'ServiceName'):
-            service_name = element.ServiceName
-        
-        # Try parameter lookup
-        if service_name is None:
-            service_param = element.LookupParameter("Fabrication Service")
-            if service_param and service_param.HasValue:
-                service_name = service_param.AsValueString() or service_param.AsString()
-        
-        # Try Service Type parameter
-        if service_name is None:
-            service_param = element.LookupParameter("Fabrication Service Name")
-            if service_param and service_param.HasValue:
-                service_name = service_param.AsValueString() or service_param.AsString()
+        service_param = element.LookupParameter("Fabrication Service")
+        if service_param and service_param.HasValue:
+            return service_param.AsValueString() or service_param.AsString()
+    
+        service_param = element.LookupParameter("Fabrication Service Name")
+        if service_param and service_param.HasValue:
+            return service_param.AsValueString() or service_param.AsString()
 
-        # Try Service Abbreviation property
-        if service_name is None:
-            if hasattr(element, 'ServiceAbbreviation'):
-                service_name = element.ServiceAbbreviation
-                
-        # Try Service Abbreviation parameter
-        if service_name is None:
-            service_param = element.LookupParameter("Fabrication Service Abbreviation")
-            if service_param and service_param.HasValue:
-                service_name = service_param.AsValueString() or service_param.AsString()
-
+        if hasattr(element, 'ServiceAbbreviation') and element.ServiceAbbreviation is not None:
+            return element.ServiceAbbreviation
+            
+        service_param = element.LookupParameter("Fabrication Service Abbreviation")
+        if service_param and service_param.HasValue:
+            return service_param.AsValueString() or service_param.AsString()
     except:
         pass
     
-    return service_name
+    return None
 
-def find_nearest_service_by_connectors(valve_connectors, all_mep_elements, tolerance):
+def build_mep_connector_cache(mep_elements):
     """
-    Find nearest MEP service by comparing valve connector locations 
-    to MEP element connector locations
+    Pre-build cache of all MEP connectors with their positions and services.
+    Returns list of tuples: (origin_xyz, service, element_id, element, connector)
     """
-    nearest_matches = []
+    print("Building MEP connector cache...")
+    connector_cache = []
     
-    for valve_conn_info in valve_connectors:
-        # Skip connectors that are already connected
-        if valve_conn_info['is_connected']:
+    for elem in mep_elements:
+            
+        connector_mgr = get_connector_manager(elem)
+        if connector_mgr is None:
             continue
         
-        valve_conn_origin = valve_conn_info['origin']
-        closest_service = None
-        min_distance = float('inf')
-        
-        for mep_element in all_mep_elements:
-
-            # Skip if same element as valve
-            if mep_element.Id == valve_conn_info['connector'].Owner.Id: # Connector.Owner.Id returns valve ID if unconnected
+        for connector in connector_mgr.Connectors:
+            try:
+                if connector.ConnectorType == ConnectorType.End or \
+                   connector.ConnectorType == ConnectorType.Physical:
+                    origin = connector.Origin
+                    connector_cache.append({
+                        'origin': origin,
+                        'element_id': elem.Id.IntegerValue, 
+                        'element': elem,
+                        'connector': connector
+                    })
+            except:
                 continue
-            
-            service = get_service_from_element(mep_element)
-            if not service:
-                continue
-            
-            # Get all connectors from this MEP element
-            # COULD JUST GET ALL CONNECTORS AT START for all mep elems then would just have to subtract
-            # this connector origin from all, sort, and take smallest
-            mep_connectors = get_all_connectors(mep_element)
-            
-            for mep_conn_info in mep_connectors:
-                mep_conn_origin = mep_conn_info['origin']
-                distance = valve_conn_origin.DistanceTo(mep_conn_origin)
-                
-                # Check if this is the closest match within tolerance
-                if distance <= tolerance and distance < min_distance:
-                    min_distance = distance
-                    closest_service = {
-                        'service': service,
-                        'element': mep_element,
-                        'element_id': mep_element.Id.IntegerValue,
-                        'distance': distance,
-                        'valve_connector_origin': valve_conn_origin,
-                        'mep_connector_origin': mep_conn_origin,
-                        'mep_connector': mep_conn_info['connector'],
-                        'valve_connector': valve_conn_info['connector']
-                    }
-        
-        if closest_service:
-            nearest_matches.append(closest_service)
     
-    # Return the overall closest match if any found
-    if nearest_matches:
-        return min(nearest_matches, key=lambda x: x['distance'])
+    print("  Cached {} MEP connectors".format(len(connector_cache)))
+    return connector_cache
+
+def build_valve_connector_cache(valves):
+    """
+    Pre-build cache of valve connectors grouped by valve.
+    Returns dict: {valve_id: [(connector, origin, is_connected), ...]}
+    """
+    print("Building valve connector cache...")
+    valve_cache = {}
+    
+    for valve in valves:
+
+        connector_mgr = get_connector_manager(valve)
+        if connector_mgr is None:
+            valve_cache[valve.Id.IntegerValue] = []
+            continue
+        
+        valve_connectors = []
+        for connector in connector_mgr.Connectors:
+            try:
+                if connector.ConnectorType == ConnectorType.End or \
+                   connector.ConnectorType == ConnectorType.Physical:
+                    origin = connector.Origin
+                    is_connected = connector.IsConnected
+                    valve_connectors.append({
+                        'connector': connector,
+                        'origin': origin,
+                        'is_connected': is_connected
+                    })
+            except:
+                continue
+        
+        valve_cache[valve.Id.IntegerValue] = valve_connectors
+    
+    print("  Cached connectors for {} valves".format(len(valve_cache)))
+    return valve_cache
+
+def get_connected_service(valve, valve_connectors):
+    """Check if valve has any connected elements and return service"""
+    # Loop through each valve connector
+    for conn_info in valve_connectors:
+
+        # Skip unconnected
+        if not conn_info['is_connected']:
+            continue
+        
+        connector = conn_info['connector']
+        connector_set = connector.AllRefs
+        
+        for ref_connector in connector_set:
+            if ref_connector.Owner.Id != valve.Id:
+                service = get_service_from_element(ref_connector.Owner) 
+                if service:
+                    # If one connector is connected, return immediately
+                    return {
+                        'service': service,
+                        'method': 'connected',
+                        'distance': 0.0,
+                        'element_id': ref_connector.Owner.Id.IntegerValue, # Element ID of connected MEP
+                        'valve_connector_loc': conn_info['origin'],
+                        'mep_connector_loc': ref_connector.Origin
+                    }
+    return None
+
+def sq_distance(pt1, pt2):
+    """
+    Calculate squared distance between two XYZ points
+    Returns float('inf') if any axis distance exceeds tolerance to avoid unnecessary calculations.
+    """
+    dx = pt1.X - pt2.X
+    if dx > PROXIMITY_TOLERANCE:
+        return float('inf')
+    dy = pt1.Y - pt2.Y
+    if dy > PROXIMITY_TOLERANCE:
+        return float('inf')
+    dz = pt1.Z - pt2.Z
+    if dz > PROXIMITY_TOLERANCE:
+        return float('inf')
+    return dx*dx + dy*dy + dz*dz
+
+def sq_distance_no_check(pt1, pt2):
+    """Calculate squared distance between two XYZ points without any checks."""
+    dx = pt1.X - pt2.X
+    dy = pt1.Y - pt2.Y
+    dz = pt1.Z - pt2.Z
+    return dx*dx + dy*dy + dz*dz
+
+def best_match_data(mep_elem, valve_conn, mep_conn_origin, distance_sq, method):
+    """Helper to create best match data dict"""
+    # Get element id safely
+    elem_id = getattr(mep_elem.Id, "IntegerValue", None) if hasattr(mep_elem, "Id") else None
+    return {
+        'service': get_service_from_element(mep_elem),
+        'element_id': elem_id,
+        'valve_connector_loc': valve_conn['origin'],
+        'mep_connector_loc': mep_conn_origin,
+        'distance': distance_sq ** 0.5,
+        'method': 'proximity_' + method
+    }
+
+def find_nearest_by_connectors(valve_connectors, mep_connector_cache, tolerance_sq, touching_dist_sq):
+    """
+    Find nearest service by comparing to cached MEP connectors.
+    Uses squared distance to avoid expensive sqrt operations.
+    """
+    best_match_mep_conn = None
+    best_match_valve_conn = None
+    min_distance_sq = float('inf')
+    
+    # Loop through each valve connector and find overall closest MEP connector
+    for valve_conn in valve_connectors:
+
+        # Single pass through MEP connector cache
+        for mep_conn in mep_connector_cache:
+
+            # Calculate squared distance (avoid sqrt)
+            distance_sq = sq_distance(valve_conn['origin'], mep_conn['origin'])
+
+            # Track best match (no sqrt yet, just store data)
+            if distance_sq < min_distance_sq:
+                min_distance_sq, best_match_valve_conn, best_match_mep_conn = distance_sq, valve_conn, mep_conn
+
+                # Early exit if essentially touching 
+                if distance_sq < touching_dist_sq:
+                    return best_match_data(mep_conn['element'], 
+                                            valve_conn, mep_conn['origin'], distance_sq, 'connector')
+            
+    # Only compute actual distance for the best match
+    if min_distance_sq < tolerance_sq:
+        return best_match_data(best_match_mep_conn['element'], best_match_valve_conn, 
+                                            best_match_mep_conn['origin'], min_distance_sq, 'connector')
 
     return None
 
-def find_nearest_service_by_centerline(valve_connectors, all_mep_elements, tolerance):
-    """
-    Fallback function: Find nearest MEP service by comparing valve connector 
-    locations to MEP element centerlines/curves (for valves placed through pipes that have not been cut correctly)
-    """
-    nearest_matches = []
 
-    for valve_conn_info in valve_connectors:
-        # Skip connectors that are already connected
-        if valve_conn_info['is_connected']:
-            continue
-
-        # Adjust tolerance based on valve radius (if available)
-        max_valve_radius = valve_conn_info['connector'].Owner.LookupParameter("Maximum Size")
-        if max_valve_radius and max_valve_radius.HasValue:
-            tolerance = max_valve_radius.AsDouble() 
+def find_nearest_by_centerline(valve_connectors, mep_elements, tolerance_sq, touching_dist_sq):
+    """
+    Fallback: Find nearest service by projecting onto MEP element centerlines.
+    Only called if connector search fails.
+    """
+    best_match_mep_elem = None
+    best_match_valve_conn = None
+    best_match_point = None
+    min_distance_sq = float('inf')
+    
+    for valve_conn in valve_connectors:
         
-        valve_conn_origin = valve_conn_info['origin']
-        closest_service = None
-        min_distance = float('inf')
-        
-        for mep_element in all_mep_elements:
-            # Skip if same element as valve
-            if mep_element.Id == valve_conn_info['connector'].Owner.Id:
-                continue
+        for mep_elem in mep_elements:
             
-            service = get_service_from_element(mep_element)
-            if not service:
+            # Check if element has location before accessing
+            if not hasattr(mep_elem, "Location") or not mep_elem.Location:
                 continue
-
-            if not hasattr(mep_element, "Location") or not mep_element.Location:
-                continue
-            # Get the location curve/centerline of the MEP element
-            location = mep_element.Location
-            distance = None
-            closest_point = None
+            location = mep_elem.Location
             
             if isinstance(location, LocationCurve):
                 # Get the curve (centerline of pipe/duct/conduit)
                 curve = location.Curve
-                
+
                 # Project the valve connector point onto the curve
-                # This finds the closest point on the curve to the valve connector
                 try:
-                    result = curve.Project(valve_conn_origin)
-                    if result:
+                    # Cheaper check to skip if too far from curve endpoints (with tolerance) before calling Project
+                    if sq_distance_no_check(valve_conn['origin'], curve.Origin) > ((curve.Length/2) * 1.5)**2:
+                        continue
+                    # This finds the closest point on the curve to the valve connector
+                    result = curve.Project(valve_conn['origin'])
+                    if result and hasattr(result, "XYZPoint"):
                         closest_point = result.XYZPoint
-                        distance = valve_conn_origin.DistanceTo(closest_point)
+                        distance_sq = sq_distance(valve_conn['origin'], closest_point)
+                        
+                        if distance_sq < min_distance_sq:
+                            min_distance_sq, best_match_valve_conn, best_match_mep_elem, best_match_point = distance_sq, valve_conn, mep_elem, closest_point
+
+                            # Early exit if essentially touching 
+                            if distance_sq < touching_dist_sq:
+                                return best_match_data(mep_elem, valve_conn, 
+                                                        closest_point, distance_sq, 'centerline')
+
                 except:
                     # Could add in some more complex handling here if projection fails 
                     continue
-                        
+
+            # For point-based elements (equipment, etc.)
             elif isinstance(location, LocationPoint):
-                # For point-based elements (equipment, etc.)
                 point = location.Point
-                distance = valve_conn_origin.DistanceTo(point)
-                closest_point = point
-            
-            # Check if this is the closest match within tolerance
-            if distance is not None and distance <= tolerance and distance < min_distance:
-                min_distance = distance
-                closest_service = {
-                    'service': service,
-                    'element': mep_element,
-                    'element_id': mep_element.Id.IntegerValue,
-                    'distance': distance,
-                    'valve_connector_origin': valve_conn_origin,
-                    'mep_connector_origin': closest_point,
-                    'mep_connector': None,  # No specific connector in this case
-                    'valve_connector': valve_conn_info['connector'],
-                    'method_detail': 'centerline'
-                }
-        
-        if closest_service:
-            nearest_matches.append(closest_service)
-    
-    # Return the overall closest match if any found
-    if nearest_matches:
-        return min(nearest_matches, key=lambda x: x['distance'])
+                distance_sq = sq_distance(valve_conn['origin'], point)
+                
+                if distance_sq < min_distance_sq:
+                    min_distance_sq, best_match_valve_conn, best_match_mep_elem, best_match_point = distance_sq, valve_conn, mep_elem, point
+
+                    # Early exit if essentially touching 
+                    if distance_sq < touching_dist_sq:
+                        return best_match_data(mep_elem, valve_conn, 
+                                                point, distance_sq, 'centerline')
+
+
+    if min_distance_sq < tolerance_sq:
+        return best_match_data(best_match_mep_elem, best_match_valve_conn, 
+                                            best_match_point, min_distance_sq, 'centerline')
     
     return None
 
+def process_all_valves(valves, valve_cache, mep_connector_cache, mep_elements, tolerance, touching_dist_sq):
+    """
+    Single loop through all valves with hierarchical search:
+    1. Check connected
+    2. Check proximity to connectors
+    3. Check proximity to centerlines
+    """
+    print("\nProcessing valves...")
+    results = []
+
+    # Pre-compute squared tolerance for distance comparisons
+    tolerance_sq = tolerance * tolerance
+    
+    step = max(1, len(valves) // 10)  # ~10% intervals
+    for i, valve in enumerate(valves):
+        if i % step == 0 and i > 0:
+            print("  Processed {}/{}...".format(i, len(valves)))
+        
+        valve_id = valve.Id.IntegerValue
+        valve_connectors = valve_cache.get(valve_id, [])
+        
+        result = {
+            'valve_id': valve_id,
+            'valve_name': valve.Name,
+            'service': None,
+            'method': 'no_connectors',
+            'distance': None,
+            'source_element_id': None,
+            'valve_connector_location': None,
+            'mep_connector_location': None
+        }
+        
+        if not valve_connectors:
+            results.append(result)
+            continue
+        
+        # Step 1: Check if connected
+        connected = get_connected_service(valve, valve_connectors)
+        if connected:
+            result.update(connected)
+            result['valve_connector_location'] = connected['valve_connector_loc']
+            result['mep_connector_location'] = connected['mep_connector_loc']
+            results.append(result)
+            continue
+        
+        # Step 2: Check connector proximity
+        nearest = find_nearest_by_connectors(valve_connectors, mep_connector_cache, tolerance_sq, touching_dist_sq)
+        if nearest:
+            result.update(nearest)
+            result['valve_connector_location'] = nearest['valve_connector_loc']
+            result['mep_connector_location'] = nearest['mep_connector_loc']
+            results.append(result)
+            continue
+        
+        # Step 3: Check centerline proximity (fallback)
+        nearest = find_nearest_by_centerline(valve_connectors, mep_elements, tolerance_sq, touching_dist_sq)
+        if nearest:
+            result.update(nearest)
+            result['valve_connector_location'] = nearest['valve_connector_loc']
+            result['mep_connector_location'] = nearest['mep_connector_loc']
+        else:
+            result['method'] = 'not_found'
+        
+        results.append(result)
+    
+    return results
+
 def get_all_mep_fabrication_elements():
     """Get all MEP fabrication elements in the model"""
-    # Fabrication parts
     fab_parts = FilteredElementCollector(doc)\
         .OfClass(FabricationPart)\
         .WhereElementIsNotElementType()\
         .ToElements()
     
-    # Filter to only pipework
     pipework = [f for f in fab_parts if f.Category and f.Category.Name == "MEP Fabrication Pipework"]
-
     return pipework
 
-def process_valve(valve, all_mep_elements):
-    """Process a single valve to determine its service using connector-based logic"""
-    result = {
-        'valve_id': valve.Id.IntegerValue,
-        'valve_name': valve.Name,
-        'service': None,
-        'method': None,  # 'connected' or 'proximity'
-        'distance': None,
-        'source_element_id': None,
-        'valve_connector_location': None,
-        'mep_connector_location': None
-    }
-    
-    # Get all valve connectors
-    valve_connectors = get_all_connectors(valve)
-    
-    if not valve_connectors:
-        result['method'] = 'no_connectors'
-        return result
-
-    # Step 1: If direct connections then use and return service of connected element 
-    connected_elements = get_connected_elements(valve)
-    
-    for conn_info in connected_elements:
-        service = get_service_from_element(conn_info['element'])
-        if service:
-            result['service'] = service
-            result['method'] = 'connected'
-            result['source_element_id'] = conn_info['element'].Id.IntegerValue
-            result['distance'] = 0.0
-            result['valve_connector_location'] = conn_info['valve_connector'].Origin
-            result['mep_connector_location'] = conn_info['connector'].Origin
-            return result
-    
-    # Step 2: If not connected, search by connector proximity
-    nearest_service = find_nearest_service_by_connectors(
-        valve_connectors, 
-        all_mep_elements, 
-        PROXIMITY_TOLERANCE
-    )
-    
-    if nearest_service:
-        result['service'] = nearest_service['service']
-        result['method'] = 'proximity'
-        result['distance'] = nearest_service['distance']
-        result['source_element_id'] = nearest_service['element_id']
-        result['valve_connector_location'] = nearest_service['valve_connector_origin']
-        result['mep_connector_location'] = nearest_service['mep_connector_origin']
-    else:
-        result['method'] = 'not_found'
-
-    # Step 3: If still not found, try centerline proximity (for valves placed through pipes)
-    if not nearest_service:
-        nearest_service = find_nearest_service_by_centerline(
-            valve_connectors,
-            all_mep_elements,
-            PROXIMITY_TOLERANCE
-        )
-    
-    if nearest_service:
-        result['service'] = nearest_service['service']
-        result['method'] = 'proximity_' + nearest_service.get('method_detail', 'unknown')
-        result['distance'] = nearest_service['distance']
-        result['source_element_id'] = nearest_service['element_id']
-        result['valve_connector_location'] = nearest_service['valve_connector_origin']
-        result['mep_connector_location'] = nearest_service['mep_connector_origin']
-    else:
-        result['method'] = 'not_found'
-    
-    return result
-
-# Main execution
 def main():
-    # Get all valves in the model
-    all_valves = []
+    # Get all valves
+    print("="*60)
+    print("VALVE SERVICE EXTRACTION")
+    print("="*60)
     
-    # Try different valve categories
+    all_valves = []
     valve_categories = [
         BuiltInCategory.OST_PipeAccessory,
-        BuiltInCategory.OST_MechanicalEquipment,
-        BuiltInCategory.OST_PlumbingFixtures,
-        BuiltInCategory.OST_PipeFitting
+        # BuiltInCategory.OST_MechanicalEquipment,
+        # BuiltInCategory.OST_PlumbingFixtures,
+        # BuiltInCategory.OST_PipeFitting
     ]
     
     for category in valve_categories:
@@ -360,83 +382,72 @@ def main():
             all_valves.extend(valves)
         except:
             continue
-    
-    # Filter to actual valves (adjust this filter based on your naming conventions)
-    # valves = []
-    # for v in all_valves:
-    #     try:
-    #         if 'valve' in v.Name.lower():
-    #             valves.append(v)
-    #         elif v.LookupParameter("Family"):
-    #             family_name = v.LookupParameter("Family").AsValueString()
-    #             if family_name and 'valve' in family_name.lower():
-    #                 valves.append(v)
-    #     except:
-    #         continue
 
+    valves = []
+    for v in all_valves:
+        try:
+            if 'valve' in v.Name.lower():
+                valves.append(v)
+            elif v.LookupParameter("Family"):
+                family_name = v.LookupParameter("Family").AsValueString()
+                if family_name and 'valve' in family_name.lower():
+                    valves.append(v)
+        except:
+            continue
+    
+    # Use selection if available
     selection_ids = uidoc.Selection.GetElementIds()
-    valves = [doc.GetElement(id) for id in selection_ids]
+    if selection_ids:
+        valves = [doc.GetElement(id) for id in selection_ids]
+        print("\nProcessing {} selected valves".format(len(valves)))
+    else:
+        print("\nProcessing {} valves from model".format(len(valves)))
     
-    # Get all MEP elements
-    print("Collecting MEP fabrication elements...")
-    all_mep_elements = get_all_mep_fabrication_elements()
-    print("Found {} MEP elements".format(len(all_mep_elements)))
+    # Get MEP elements
+    print("\nCollecting MEP fabrication elements...")
+    mep_elements = get_all_mep_fabrication_elements()
+    print("Found {} MEP elements".format(len(mep_elements)))
     
-    # Process each valve
-    print("\nProcessing {} valves...".format(len(valves)))
-    results = []
-    for i, valve in enumerate(valves):
-        if i % 10 == 0:
-            print("  Processing valve {}/{}...".format(i+1, len(valves)))
-        result = process_valve(valve, all_mep_elements)
-        results.append(result)
+    # Pre-build caches (one-time cost)
+    mep_connector_cache = build_mep_connector_cache(mep_elements)
+    valve_cache = build_valve_connector_cache(valves)
     
-    # Output results
+    # Process all valves in single loop
+    results = process_all_valves(valves, valve_cache, mep_connector_cache, 
+                                   mep_elements, PROXIMITY_TOLERANCE, TOUCHING_DIST_SQ)
+    
+    # Output summary
     print("\n" + "="*60)
-    print("VALVE SERVICE EXTRACTION RESULTS (Connector-Based)")
-    print("="*60 + "\n")
-    print("Total Valves Processed: {}".format(len(results)))
+    print("RESULTS")
+    print("="*60)
+    print("Total Valves: {}".format(len(results)))
     
-    connected_count = sum(1 for r in results if r['method'] == 'connected')
-    proximity_count = sum(1 for r in results if r['method'] == 'proximity')
-    unassigned_count = sum(1 for r in results if r['service'] is None)
+    connected = sum(1 for r in results if r['method'] == 'connected')
+    proximity_conn = sum(1 for r in results if r['method'] == 'proximity_connector')
+    proximity_center = sum(1 for r in results if r['method'] == 'proximity_centerline')
+    not_found = sum(1 for r in results if r['method'] == 'not_found')
     
-    print("  Connected: {}".format(connected_count))
-    print("  By Proximity: {}".format(proximity_count))
-    print("  Unassigned: {}\n".format(unassigned_count))
+    print("  Connected: {}".format(connected))
+    print("  Proximity (Connector): {}".format(proximity_conn))
+    print("  Proximity (Centerline): {}".format(proximity_center))
+    print("  Not Found: {}\n".format(not_found))
     
     # Detailed output
+    output_lines = []
     for result in results:
-        print("Valve ID: {} | Name: {}".format(result['valve_id'], result['valve_name']))
-        print("  Service: {}".format(result['service'] or 'UNASSIGNED'))
-        print("  Method: {}".format(result['method']))
+        output_lines.append("Valve: {} [ID: {}]".format(result['valve_name'], result['valve_id']))
+        output_lines.append("  Service: {}".format(result['service'] or 'UNASSIGNED'))
+        output_lines.append("  Method: {}".format(result['method']))
         if result['distance'] is not None:
-            print("  Distance: {:.3f} mm".format(result['distance'] * 304.8))  # Convert to mm for display
-        if result['valve_connector_location']:
-            loc = result['valve_connector_location']
-            print("  Valve Connector: ({:.2f}, {:.2f}, {:.2f})".format(loc.X, loc.Y, loc.Z))
-        if result['mep_connector_location']:
-            loc = result['mep_connector_location']
-            print("  MEP Connector: ({:.2f}, {:.2f}, {:.2f})".format(loc.X, loc.Y, loc.Z))
-        print()
+            output_lines.append("  Distance: {:.3f} mm".format(result['distance'] * 304.8))
+        output_lines.append("") 
+    print("\n".join(output_lines))
     
-    return results
+    # return results
 
-# Run the script
 if __name__ == '__main__':
     results = main()
-    
-    # Optional: Write results back to Revit parameters
-    # You would need to create a shared parameter on valves called "Assigned Service"
-    """
-    TransactionManager.Instance.EnsureInTransaction(doc)
-    
-    for result in results:
-        if result['service']:
-            valve = doc.GetElement(ElementId(result['valve_id']))
-            service_param = valve.LookupParameter("Assigned Service")
-            if service_param and not service_param.IsReadOnly:
-                service_param.Set(result['service'])
-    
-    TransactionManager.Instance.TransactionTaskDone()
-    """
+
+
+
+# Excess metadata includes XYZ location of valve and MEP connector 
