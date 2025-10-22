@@ -359,6 +359,38 @@ def get_all_mep_fabrication_elements():
     pipework = [f for f in fab_parts if f.Category and f.Category.Name == "MEP Fabrication Pipework"]
     return pipework
 
+def debug_output(results, show_details=True):
+    """Print summary and detailed results."""
+    lines = []
+    add = lines.append  # local ref for speed
+
+    add("\n" + "=" * 60)
+    add("RESULTS")
+    add("=" * 60)
+    add("Total Valves: {}".format(len(results)))
+
+    connected = sum(1 for r in results if r['method'] == 'connected')
+    proximity_conn = sum(1 for r in results if r['method'] == 'proximity_connector')
+    proximity_center = sum(1 for r in results if r['method'] == 'proximity_centerline')
+    not_found = sum(1 for r in results if r['method'] == 'not_found')
+
+    add("  Connected: {}".format(connected))
+    add("  Proximity (Connector): {}".format(proximity_conn))
+    add("  Proximity (Centerline): {}".format(proximity_center))
+    add("  Not Found: {}\n".format(not_found))
+
+    if show_details:
+        for result in results:
+            add("Valve: {} [ID: {}]".format(result['valve_name'], result['valve_id']))
+            add("  Service: {}".format(result['service'] or 'UNASSIGNED'))
+            add("  Method: {}".format(result['method']))
+            if result['distance'] is not None:
+                add("  Distance: {:.3f} mm".format(result['distance'] * 304.8))
+            add("")  
+
+    print("\n".join(lines))
+
+
 def main():
     # Get all valves
     print("="*60)
@@ -417,31 +449,7 @@ def main():
                                    mep_elements, PROXIMITY_TOLERANCE, TOUCHING_DIST_SQ)
     
     # Output summary
-    print("\n" + "="*60)
-    print("RESULTS")
-    print("="*60)
-    print("Total Valves: {}".format(len(results)))
-    
-    connected = sum(1 for r in results if r['method'] == 'connected')
-    proximity_conn = sum(1 for r in results if r['method'] == 'proximity_connector')
-    proximity_center = sum(1 for r in results if r['method'] == 'proximity_centerline')
-    not_found = sum(1 for r in results if r['method'] == 'not_found')
-    
-    print("  Connected: {}".format(connected))
-    print("  Proximity (Connector): {}".format(proximity_conn))
-    print("  Proximity (Centerline): {}".format(proximity_center))
-    print("  Not Found: {}\n".format(not_found))
-    
-    # Detailed output
-    output_lines = []
-    for result in results:
-        output_lines.append("Valve: {} [ID: {}]".format(result['valve_name'], result['valve_id']))
-        output_lines.append("  Service: {}".format(result['service'] or 'UNASSIGNED'))
-        output_lines.append("  Method: {}".format(result['method']))
-        if result['distance'] is not None:
-            output_lines.append("  Distance: {:.3f} mm".format(result['distance'] * 304.8))
-        output_lines.append("") 
-    print("\n".join(output_lines))
+    debug_output(results, show_details=True)
     
     # return results
 
