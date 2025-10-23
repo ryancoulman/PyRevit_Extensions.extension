@@ -151,13 +151,13 @@ def sq_distance(pt1, pt2):
     Returns float('inf') if any axis distance exceeds tolerance to avoid unnecessary calculations.
     """
     dx = pt1.X - pt2.X
-    if dx > PROXIMITY_TOLERANCE:
+    if abs(dx) > PROXIMITY_TOLERANCE:
         return float('inf')
     dy = pt1.Y - pt2.Y
-    if dy > PROXIMITY_TOLERANCE:
+    if abs(dy) > PROXIMITY_TOLERANCE:
         return float('inf')
     dz = pt1.Z - pt2.Z
-    if dz > PROXIMITY_TOLERANCE:
+    if abs(dz) > PROXIMITY_TOLERANCE:
         return float('inf')
     return dx*dx + dy*dy + dz*dz
 
