@@ -26,6 +26,7 @@ TO MAKE
     - Bridge: Send UniqueId to Navisworks (via JSON file, named pipe, or socket).
     - Navisworks add-in: Listen for incoming UniqueId → search ModelItem.PropertyCategories for matching “Revit GUID” → select & zoom in Navisworks viewer.
 - Simple but useful: 'Select all tags of selected families and vice versa). useful when tagging and moving tags. can be easier to select for one 
+- Simple but useful: 'Select all tuitleblocks of selected sheets': Usefule for when you have to update many titleblock properties at once but dont want to open lots of views
 
 --Meta--
 Insted of having dropdowns on some buttons as if they want to apply to selected elements, elements in view, elements in multiple views you should create a meta class that checks if
