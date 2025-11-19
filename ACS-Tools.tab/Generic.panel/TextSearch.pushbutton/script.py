@@ -13,14 +13,16 @@ def selected_main():
     form_handler = FormHandler(doc, active_view)
 
     if check_selected(doc, uidoc):
-        selected_options = FormHandler.MATCH_ENTIRE_WORD
-        search_term = check_selected(doc, uidoc)
+        selected_options = FormHandler.MATCH_REGEX
+        selected_text_notes, selected_annotation_tags = check_selected(doc, uidoc)
+        search_term = form_handler.get_search_string()
+        text_handler = TextHandler(doc, active_view, uidoc, selected_options, selected_text_notes, selected_annotation_tags)
     else:
-        form_handler = FormHandler(doc, active_view)
         selected_options = form_handler.get_selected_options()
         search_term = form_handler.get_search_string()
+        text_handler = TextHandler(doc, active_view, uidoc, selected_options)
+    
 
-    text_handler = TextHandler(doc, active_view, uidoc, selected_options)
     matching_text_notes = text_handler.search_text(search_term)
     
     with Transaction(doc, "Search and Select Text") as t:

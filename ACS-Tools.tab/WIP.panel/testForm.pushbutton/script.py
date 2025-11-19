@@ -1,20 +1,18 @@
-from wpf_helper import get_wpf_path
-from pyrevit.framework import wpf
-from pyrevit import script
-from System.Windows import Window
+import Autodesk.Revit.DB as DB
+from pyrevit import forms 
+import clr
+clr.AddReference("System.Collections")
+from System.Collections.Generic import List
 
-class MainWindow(Window):
-    def __init__(self):
-        xaml_path = get_wpf_path("MainWindow.xaml")
-        wpf.LoadComponent(self, xaml_path)
-        self.Closing += self.on_closing
-        self.ShowDialog()
+uidoc = __revit__.ActiveUIDocument
+doc = uidoc.Document
 
-    def Button_Click(self, sender, e):
-        print("Clicked!")
+cats = [DB.BuiltInCategory.OST_FabricationContainment, 
+        DB.BuiltInCategory.OST_FabricationDuctwork, 
+        DB.BuiltInCategory.OST_FabricationPipework]
+multicatfilter = DB.ElementMulticategoryFilter(List[DB.BuiltInCategory](cats))
+elems = DB.FilteredElementCollector(doc).WhereElementIsNotElementType().OfClass(DB.FabricationPart).ToElementIds()
+# select all elms in revit model 
 
-    def on_closing(self, sender, args):
-        self.Close()
-        script.exit()
-
-MainWindow().ShowDialog()
+# uidoc.Selection.SetElementIds(elems)
+print("have slected {} elements".format(len(elems)))

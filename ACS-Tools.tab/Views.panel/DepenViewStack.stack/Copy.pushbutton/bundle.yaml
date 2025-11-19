@@ -9,4 +9,4 @@ tooltip:
     Open the view you want to copy details to (ensure you have clicked in the view window to make it active). Click the button and select the views you want to copy details from. Click OK. 
     
     **TLDR:**
-    This tool only copies detail elements (lines, text, filled regions, detail components, etc.) and does not copy model elements or view-specific elements such as dimensions or tags.
+    This tool only copies detail elements (lines, text, filled regions, detail components, etc.) and does not copy model elements.
