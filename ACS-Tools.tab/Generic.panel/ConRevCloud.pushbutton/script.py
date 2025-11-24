@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 # pyRevit script: Convert selected Revision Clouds to Detail Lines (modular, multiple clouds)
 
+
+
+# // BIN this off and instead just provide a tool that elects all rev clouds on sheet (and in views) selected in proect browser
+# oe open in view. then user can jsut change to current rev 
+
+
+
 from Autodesk.Revit.DB import (
     Transaction,
     RevisionCloud,
