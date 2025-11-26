@@ -7,7 +7,7 @@ uidoc = revit.uidoc
 doc = revit.doc
 
 BICS = [
-    BuiltInCategory.OST_PipeAccessory
+    BuiltInCategory.OST_FabricationContainment
 ]
 BICS_LIST = List[BuiltInCategory](BICS)
 
@@ -31,6 +31,8 @@ def get_filterable_params(doc, bic_ids):
 
     for pid in filterable:
         int_id = pid.IntegerValue
+        
+        type_or_instance = ""
 
         # --- Case 1: Built-in parameter ---
         # Check safely if the integer corresponds to a known BuiltInParameter enum
@@ -39,7 +41,7 @@ def get_filterable_params(doc, bic_ids):
 
             if bip != BuiltInParameter.INVALID:
                 name = LabelUtils.GetLabelFor(bip)
-                results.append((name, int_id, ""))   # no GUID for built-ins
+                results.append((name, int_id, "", ""))   # no GUID for built-ins
                 continue
 
         # --- Case 2: Shared or Project Parameter (ParameterElement) ---
@@ -50,23 +52,25 @@ def get_filterable_params(doc, bic_ids):
 
             Binding = paramBindings.get_Item(definition)
             if isinstance(Binding, TypeBinding):
-                pass
+                type_or_instance = "TYPE"
+            elif isinstance(Binding, InstanceBinding):
+                type_or_instance = "INSTANCE"
 
             if isinstance(pe, SharedParameterElement):
                 guid_str = str(pe.GuidValue)
             else:
                 guid_str = ""
 
-            results.append((name, -1, guid_str))
+            results.append((name, -1, guid_str, type_or_instance))
 
     return results
 
 def print_results(results):
-    for name, int_id, guid_str in results:
+    for name, int_id, guid_str, type_or_instance in results:
         if int_id != -1:
-            print("Built-in Parameter: {} (ID: {})".format(name, int_id))
+            print("Built-in Parameter [{}]: {} (ID: {})".format(type_or_instance, name, int_id))
         else:
-            print("Parameter: {} (GUID: {})".format(name, guid_str))
+            print("Parameter [{}]: {} (GUID: {})".format(type_or_instance, name, guid_str))
 
 
 def params_from_dummy_element(doc, bic_list):
@@ -85,7 +89,7 @@ def params_from_dummy_element(doc, bic_list):
 
 def compare_param_lists(dummy_list, common_list):
     names1 = set(p.Definition.Name for p in dummy_list)
-    names2 = set(p[0] for p in common_list)
+    names2 = set(name for name, int_id, guid_str, type_or_instance in common_list if type_or_instance != "TYPE")
 
     print(len(names1), "parameters in list 1")
     print(len(names2), "parameters in list 2")
@@ -132,22 +136,23 @@ def get_all_parameter_names(doc):
     return sorted(list(names))
 
 if __name__ == "__main__":
-    # results = get_filterable_params(doc, BICS_LIST)
-    # print_results(results)
-    # # Get parameters from dummy elements
-    # params_list = params_from_dummy_element(doc, BICS)
-    # # print("\n\nParameters from dummy element:")
-    # # for p in params_list:
-    # #     print("Parameter from dummy element: {}".format(p.Definition.Name))
-    # # compare_param_lists(params_list, results)  # Compare the list to the results from get_filterable_params
+    results = get_filterable_params(doc, BICS_LIST)
+    print_results(results)
+    # Get parameters from dummy elements
+    params_list = params_from_dummy_element(doc, BICS)
+    print("\n\nParameters from dummy element:")
+    for p in params_list:
+        print("Parameter from dummy element: {}".format(p.Definition.Name))
+    compare_param_lists(params_list, results)  # Compare the list to the results from get_filterable_params
 
     # ordered_results = sorted(results, key=lambda x: x[0])
     # print("\n\nOrdered Filterable Parameters:")
     # for name, int_id, guid_str in ordered_results:
     #     print(name)
-    all_param_names = get_all_parameter_names(doc)
-    print("All parameter names in document ({}):".format(len(all_param_names)))
-    strings = ""
-    for name in all_param_names:
-        strings += name + "\n"
-    print(len(all_param_names))
+
+    # all_param_names = get_all_parameter_names(doc)
+    # print("All parameter names in document ({}):".format(len(all_param_names)))
+    # strings = ""
+    # for name in all_param_names:
+    #     strings += name + "\n"
+    # print(len(all_param_names))
