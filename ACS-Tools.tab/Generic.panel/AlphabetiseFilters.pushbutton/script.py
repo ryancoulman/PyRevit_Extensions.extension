@@ -3,7 +3,8 @@ from pyrevit import revit, forms
 
 __title__ = "Alphabetise\nFilters"
 __doc__ = ''' 
-Description:\nThis tool retrieves the filters applied to the current view, removes them, sorts them alphabetically, and then re-applies them with the original overrides, visibility settings, and if they were enabled or not.
+Description:\nThis tool retrieves the filters applied to the current view, removes them, sorts them alphabetically, 
+and then re-applies them with the original overrides, visibility settings, and if they were enabled or not.
 '''
 
 # Access Revit document and active view
@@ -12,7 +13,7 @@ active_view = revit.active_view
 
 def get_filters_and_overrides(view):
     """Get the filters, their overrides, visibility, and enable filter states from the view."""
-    filters = view.GetOrderedFilters()
+    filters = view.GetFilters()
     filter_info = []
 
     for filter_id in filters:
@@ -55,7 +56,7 @@ def reapply_filters(view, sorted_filters):
         view.SetIsFilterEnabled(filter_element.Id, is_enabled)
 
 
-def alphabetize_filters(view):
+def alphabetise_filters(view):
     """Main function to alphabetize filters in the active view."""
     # Step 1: Get the current filters, their overrides, and visibility states
     filter_info = get_filters_and_overrides(view)
@@ -72,7 +73,7 @@ def alphabetize_filters(view):
 # Start a transaction to modify the view
 with Transaction(doc, "Alphabetise Filters") as t:
     t.Start()
-    alphabetize_filters(active_view)
+    alphabetise_filters(active_view)
     t.Commit()
 
 forms.alert("Success! Filters have been alphabetised successfully, with visibility and overides preserved.", title="Success")

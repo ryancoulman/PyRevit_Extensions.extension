@@ -52,6 +52,7 @@ def get_instances_with_both_params_same_category(doc, family_instance, source_pa
     return matching
 
 
+
 def select_categories(doc):
     """Show a multiselect list of all categories in the project."""
     categories = sorted([cat.Name for cat in doc.Settings.Categories if cat.Name and cat.AllowsBoundParameters])
@@ -71,39 +72,49 @@ def get_instances_with_both_params_in_categories(doc, category_names, source_par
 
     matching_instances = []
 
-    # Build a map of selected names -> category objects
-    selected_cats = {
-        c.Name: c for c in doc.Settings.Categories if c.Name in category_names
-    }
-
-    # Loop through all elements and filter by selected categories
-    for inst in FilteredElementCollector(doc).WhereElementIsNotElementType():
-        cat = inst.Category
-        if not cat or cat.Name not in selected_cats:
+    # Get category objects
+    selected_cats = [c for c in doc.Settings.Categories if c.Name in category_names]
+    
+    # Collect from each category separately
+    for cat in selected_cats:
+        try:
+            # Much more efficient - filter by category directly
+            collector = FilteredElementCollector(doc) \
+                .OfCategoryId(cat.Id) \
+                .WhereElementIsNotElementType()
+            
+            for inst in collector:
+                # Skip groups
+                if isinstance(inst, Group):
+                    continue
+                # Skip if element has a group as its parent
+                if inst.GroupId and inst.GroupId != ElementId.InvalidElementId:
+                    continue
+                    
+                src = inst.LookupParameter(source_param_name)
+                tgt = inst.LookupParameter(target_param_name)
+                if src and tgt and not tgt.IsReadOnly:
+                    matching_instances.append(inst)
+        except:
+            # Some categories might not support filtering, skip them
             continue
-
-        src = inst.LookupParameter(source_param_name)
-        tgt = inst.LookupParameter(target_param_name)
-        if src and tgt:
-            matching_instances.append(inst)
 
     return matching_instances
 
 
-def get_family_parameters(family_instance, read_only):
+def get_family_parameters(family_instance, writable_only):
     """Return list of writable parameter names."""
     params = []
     for p in family_instance.Parameters:
-        if read_only and p.IsReadOnly:
-            params.append(p.Definition.Name)
-        else:
-            params.append(p.Definition.Name)
+        if writable_only and p.IsReadOnly:
+            continue
+        params.append(p.Definition.Name)
     return sorted(set(params))
 
 
-def pick_parameter(family_instance, read_only, title="Select Parameter"):
+def pick_parameter(family_instance, writable_only, title="Select Parameter"):
     """Prompt user to pick a parameter name from given family instance."""
-    param_names = get_family_parameters(family_instance, read_only)
+    param_names = get_family_parameters(family_instance, writable_only)
     return forms.SelectFromList.show(param_names, title=title, button_name="Select", multiselect=False)
 
 
@@ -139,8 +150,8 @@ if __name__ == "__main__":
     fam_inst = pick_family(uidoc)
     family = fam_inst.Symbol.Family
 
-    src_param = pick_parameter(fam_inst, read_only=False, title="Select Source Parameter to copy from")
-    tgt_param = pick_parameter(fam_inst, read_only=True, title="Select Target Parameter to paste to") # Only writable
+    src_param = pick_parameter(fam_inst, writable_only=False, title="Select Source Parameter to copy from")
+    tgt_param = pick_parameter(fam_inst, writable_only=True, title="Select Target Parameter to paste to") # Only writable
 
     if not src_param or not tgt_param:
         forms.alert("No parameters selected.", exitscript=True)
@@ -181,8 +192,13 @@ if __name__ == "__main__":
     for inst in matches:
         src = inst.LookupParameter(src_param)
         tgt = inst.LookupParameter(tgt_param)
-        if copy_parameter_value(src, tgt):
-            count += 1
+        if src and tgt and not tgt.IsReadOnly:
+            try:
+                if copy_parameter_value(src, tgt):
+                    count += 1
+            except Exception as e:
+                print("Failed on element {}: {}".format(inst.Id, e))
+                continue
 
     t.Commit()
 
